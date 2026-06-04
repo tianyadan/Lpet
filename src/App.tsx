@@ -125,8 +125,13 @@ export function App() {
     handleScalePointerDown,
     petStageStyle,
     setIsHovered: setIsPetHovered,
+    isHovered: isPetHovered,
     isScaling,
   } = usePetScale();
+
+  // WHY：悬停跳跃是展示层优先级，不能覆盖拖拽方向、AI 任务和缩放把手操作。
+  const petDisplayState: PetAnimationState =
+    isPetDragging || isQuickRunning || isScaling ? state : isPetHovered ? 'jumping' : state;
 
   petAnimationRef.current = state;
   isQuickRunningRef.current = isQuickRunning;
@@ -411,7 +416,7 @@ export function App() {
             setMenuPosition(null);
           }}
         >
-          <PetRenderer spritesheetUrl={spritesheetUrl} state={state} />
+          <PetRenderer spritesheetUrl={spritesheetUrl} state={petDisplayState} />
         </button>
         {showScaleHandle && <PetScaleHandle onPointerDown={handleScalePointerDown} />}
       </section>
