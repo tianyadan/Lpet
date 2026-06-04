@@ -1,0 +1,779 @@
+:root {
+  color-scheme: light dark;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: transparent;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+button {
+  font: inherit;
+}
+
+.pet-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.codex-window-stage {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  user-select: none;
+}
+
+.pet-shell {
+  position: absolute;
+  right: 32px;
+  bottom: 34px;
+  width: 192px;
+  height: 208px;
+  filter: drop-shadow(0 18px 20px rgb(0 0 0 / 20%));
+}
+
+.pet-double-click-target {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  -webkit-app-region: no-drag;
+}
+
+.pet-renderer {
+  background-repeat: no-repeat;
+  background-size: 800% 900%;
+  image-rendering: pixelated;
+  transform-origin: center bottom;
+}
+
+.quick-command {
+  position: absolute;
+  right: 128px;
+  bottom: 260px;
+  z-index: 12;
+  display: flex;
+  width: 280px;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 8px;
+  background: rgb(18 20 25 / 96%);
+  box-shadow: 0 14px 40px rgb(0 0 0 / 28%);
+  padding: 10px;
+  -webkit-app-region: no-drag;
+}
+
+.quick-command-row {
+  display: flex;
+  gap: 8px;
+}
+
+.quick-command-provider {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 7%);
+  color: #f7f8fa;
+  font-size: 12px;
+  padding: 0 8px;
+}
+
+.quick-command-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #cdd3dd;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.quick-command-input {
+  height: 54px;
+  resize: none;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 5%);
+  color: #f7f8fa;
+  outline: none;
+  padding: 8px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.quick-command-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quick-command-intent {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 5%);
+}
+
+.quick-command-intent button {
+  height: 30px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #cdd3dd;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.quick-command-intent button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.quick-command-intent .quick-command-intent-active {
+  background: #f6b64a;
+  color: #17130a;
+  font-weight: 700;
+}
+
+.quick-command-submit {
+  width: 64px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: #f4f7ff;
+  color: #12141a;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.quick-command-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.pet-speech-bubble {
+  position: absolute;
+  right: 118px;
+  bottom: 268px;
+  z-index: 7;
+  width: 240px;
+  height: 122px;
+  box-sizing: border-box;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 8px;
+  background: rgb(18 20 25 / 94%);
+  color: #e7ecf5;
+  padding: 24px 12px 34px;
+  -webkit-app-region: no-drag;
+}
+
+.pet-speech-bubble-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #cdd3dd;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.pet-speech-bubble-close:hover {
+  background: rgb(255 255 255 / 10%);
+  color: #ffffff;
+}
+
+.pet-speech-bubble-content {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.pet-speech-bubble-interrupt {
+  position: absolute;
+  right: 8px;
+  bottom: 7px;
+  height: 22px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 8%);
+  color: #f4d5d5;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 8px;
+}
+
+.pet-speech-bubble-interrupt:hover {
+  background: rgb(255 92 92 / 18%);
+}
+
+.task-status-lights {
+  position: absolute;
+  right: 14px;
+  bottom: 92px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.task-status-light {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #6f7682;
+  border: 1px solid rgb(255 255 255 / 16%);
+}
+
+.task-status-light-running {
+  background: #f5b642;
+}
+
+.task-status-light-done {
+  background: #4fdc89;
+}
+
+.task-status-light-failed {
+  background: #ff6b6b;
+}
+
+.pet-menu-container {
+  position: absolute;
+  z-index: 10;
+  color: #f7f7f8;
+  -webkit-app-region: no-drag;
+}
+
+.pet-menu {
+  min-width: 128px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 8px;
+  background: rgb(24 26 32 / 92%);
+  box-shadow: 0 16px 42px rgb(0 0 0 / 32%);
+  color: inherit;
+  backdrop-filter: blur(14px);
+}
+
+.pet-menu-submenu {
+  position: absolute;
+  z-index: 11;
+}
+
+.pet-menu::-webkit-scrollbar {
+  width: 8px;
+}
+
+.pet-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pet-menu::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 24%);
+  background-clip: content-box;
+}
+
+.pet-menu-item {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 12px;
+  text-align: left;
+}
+
+.pet-menu-item:last-child {
+  border-bottom: 0;
+}
+
+.pet-menu-item:hover {
+  background: rgb(255 255 255 / 10%);
+}
+
+.pet-menu-item-submenu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pet-menu-submenu-arrow {
+  color: #bac2cf;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.pet-menu-item:focus-visible {
+  outline: 2px solid rgb(118 199 255 / 88%);
+  outline-offset: -2px;
+}
+
+.codex-panel {
+  position: absolute;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 8px;
+  background: rgb(18 20 25 / 94%);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 34%);
+  color: #f4f5f7;
+  backdrop-filter: blur(16px);
+  -webkit-app-region: no-drag;
+}
+
+.codex-panel-detached {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+}
+
+.codex-panel-detached .codex-panel-drag-handle {
+  -webkit-app-region: drag;
+}
+
+.codex-panel-drag-handle {
+  cursor: move;
+  touch-action: none;
+}
+
+.codex-panel-header {
+  display: flex;
+  height: 36px;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  padding: 0 10px 0 12px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.codex-header-actions {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  cursor: default;
+  -webkit-app-region: no-drag;
+}
+
+.codex-icon-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #cdd3dd;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.codex-text-button {
+  height: 24px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 6%);
+  color: #dce2ec;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 8px;
+}
+
+.codex-text-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.codex-icon-button:hover {
+  background: rgb(255 255 255 / 10%);
+  color: #ffffff;
+}
+
+.codex-target-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  padding: 8px 10px;
+  -webkit-app-region: no-drag;
+}
+
+.codex-target-label {
+  color: #aab3c2;
+  font-size: 12px;
+}
+
+.codex-target-select {
+  min-width: 0;
+  height: 28px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 7%);
+  color: #f7f8fa;
+  outline: none;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.codex-target-select:focus {
+  border-color: rgb(118 199 255 / 88%);
+}
+
+.codex-target-status {
+  overflow: hidden;
+  max-width: 84px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 999px;
+  color: #b8c0ce;
+  font-size: 11px;
+  line-height: 20px;
+  padding: 0 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codex-target-status-ready {
+  border-color: rgb(79 220 137 / 30%);
+  background: rgb(79 220 137 / 12%);
+  color: #7af0ad;
+}
+
+.codex-input {
+  min-height: 76px;
+  box-sizing: border-box;
+  resize: none;
+  border: 0;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  background: rgb(255 255 255 / 4%);
+  color: #f7f8fa;
+  outline: none;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-app-region: no-drag;
+}
+
+.codex-input::placeholder {
+  color: #8d96a6;
+}
+
+.codex-panel-actions {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  -webkit-app-region: no-drag;
+}
+
+.codex-primary-button,
+.codex-secondary-button {
+  height: 30px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.codex-primary-button {
+  background: #f4f7ff;
+  color: #12141a;
+}
+
+.codex-secondary-button {
+  background: rgb(255 255 255 / 7%);
+  color: #e5e8ef;
+}
+
+.codex-primary-button:disabled,
+.codex-secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.codex-output {
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+  margin: 0;
+  overflow: auto;
+  border-top: 1px solid rgb(255 255 255 / 8%);
+  color: #d8deea;
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 10px 12px 12px;
+  user-select: text;
+  white-space: pre-wrap;
+  -webkit-app-region: no-drag;
+}
+
+.codex-panel-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  touch-action: none;
+  -webkit-app-region: no-drag;
+}
+
+.codex-panel-resize-handle::after {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 8px;
+  height: 8px;
+  border-right: 1px solid rgb(255 255 255 / 36%);
+  border-bottom: 1px solid rgb(255 255 255 / 36%);
+  content: "";
+}
+
+.codex-chat-output {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 0;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.codex-empty-output {
+  color: #8d96a6;
+  font-size: 12px;
+}
+
+.codex-chat-message {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.codex-chat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-top: 7px;
+}
+
+.codex-chat-dot-user {
+  background: #f5b642;
+}
+
+.codex-chat-dot-assistant {
+  background: #4fdc89;
+}
+
+.codex-chat-dot-system {
+  background: #8d96a6;
+}
+
+.codex-chat-bubble {
+  min-width: 0;
+  color: #e5eaf3;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.settings-panel {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 9;
+  display: flex;
+  width: min(360px, calc(100% - 36px));
+  max-height: min(420px, calc(100% - 36px));
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 8px;
+  background: rgb(18 20 25 / 96%);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 34%);
+  color: #f4f5f7;
+  backdrop-filter: blur(16px);
+  -webkit-app-region: no-drag;
+}
+
+.settings-panel-body {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.settings-installation-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 5%);
+  padding: 10px;
+}
+
+.settings-installation-main {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.settings-status-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #6d7482;
+  margin-top: 5px;
+}
+
+.settings-status-dot-installed {
+  background: #4fdc89;
+  box-shadow: 0 0 0 4px rgb(79 220 137 / 12%);
+}
+
+.settings-installation-title {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-installation-description {
+  color: #aab3c2;
+  font-size: 11px;
+  line-height: 1.45;
+  margin-top: 3px;
+}
+
+.settings-installation-meta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 17px;
+}
+
+.settings-status-label {
+  width: fit-content;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 999px;
+  color: #c2c9d5;
+  font-size: 11px;
+  line-height: 20px;
+  padding: 0 8px;
+}
+
+.settings-status-label-installed {
+  border-color: rgb(79 220 137 / 30%);
+  background: rgb(79 220 137 / 12%);
+  color: #7af0ad;
+}
+
+.settings-installation-source {
+  width: fit-content;
+  color: #9aa4b5;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.settings-installation-path {
+  overflow-wrap: anywhere;
+  color: #7f8898;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.settings-error {
+  border: 1px solid rgb(255 92 92 / 28%);
+  border-radius: 8px;
+  background: rgb(255 92 92 / 10%);
+  color: #ffb8b8;
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 8px 10px;
+}
+
+.settings-check-time {
+  color: #8d96a6;
+  font-size: 11px;
+  line-height: 1.35;
+  padding: 0 2px;
+}
+
+.settings-diagnostics {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  color: #737d8d;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  padding: 0 2px;
+}
+
+.settings-refresh-button {
+  height: 30px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  background: #f4f7ff;
+  color: #12141a;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.settings-refresh-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
