@@ -38,9 +38,8 @@ function createActionRegistry(): PetActionRegistry {
   registry.register({
     id: 'settings',
     label: '设置',
-    run: ({ openSettingsPanel, setState }) => {
+    run: ({ openSettingsPanel }) => {
       openSettingsPanel();
-      setState('waiting');
     },
   });
   registry.register({
@@ -404,7 +403,14 @@ export function App() {
         />
       )}
 
-      <SettingsPanel isOpen={isSettingsPanelOpen} onClose={() => setIsSettingsPanelOpen(false)} />
+      <SettingsPanel
+        isOpen={isSettingsPanelOpen}
+        onClose={() => {
+          setIsSettingsPanelOpen(false);
+          // WHY：旧版本打开设置会误切 waiting，关闭时兜底恢复待机，避免动画卡住。
+          setStateValue((current) => (current === 'waiting' ? 'idle' : current));
+        }}
+      />
     </main>
   );
 }
