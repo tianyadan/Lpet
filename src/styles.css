@@ -26,6 +26,7 @@ button {
   background: transparent;
   user-select: none;
   -webkit-app-region: drag;
+  --pet-scale: 1;
 }
 
 .codex-window-stage {
@@ -42,6 +43,55 @@ button {
   width: 192px;
   height: 208px;
   filter: drop-shadow(0 18px 20px rgb(0 0 0 / 20%));
+  transform: scale(var(--pet-scale, 1));
+  transform-origin: right bottom;
+}
+
+.pet-scale-handle {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  z-index: 3;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 6px;
+  background: rgb(18 20 25 / 90%);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 24%);
+  cursor: nwse-resize;
+  touch-action: none;
+  padding: 0;
+  -webkit-app-region: no-drag;
+}
+
+.pet-scale-handle::before,
+.pet-scale-handle::after {
+  position: absolute;
+  background: rgb(255 255 255 / 72%);
+  content: "";
+}
+
+.pet-scale-handle::before {
+  top: 6px;
+  left: 5px;
+  width: 8px;
+  height: 1px;
+  transform: rotate(-45deg);
+  transform-origin: left center;
+}
+
+.pet-scale-handle::after {
+  top: 11px;
+  left: 8px;
+  width: 5px;
+  height: 1px;
+  transform: rotate(-45deg);
+  transform-origin: left center;
+}
+
+.pet-scale-handle:hover {
+  border-color: rgb(255 255 255 / 34%);
+  background: rgb(28 32 40 / 94%);
 }
 
 .pet-double-click-target {
@@ -63,8 +113,8 @@ button {
 
 .quick-command {
   position: absolute;
-  right: 128px;
-  bottom: 260px;
+  right: calc(128px + 192px * (var(--pet-scale, 1) - 1));
+  bottom: calc(52px + 208px * var(--pet-scale, 1));
   z-index: 12;
   display: flex;
   width: 280px;
@@ -175,8 +225,8 @@ button {
 
 .pet-speech-bubble {
   position: absolute;
-  right: 118px;
-  bottom: 268px;
+  right: calc(118px + 192px * (var(--pet-scale, 1) - 1));
+  bottom: calc(60px + 208px * var(--pet-scale, 1));
   z-index: 7;
   width: 240px;
   height: 122px;
@@ -260,8 +310,8 @@ button {
 
 .task-status-lights {
   position: absolute;
-  right: 14px;
-  bottom: 92px;
+  right: calc(14px + 192px * (1 - var(--pet-scale, 1)));
+  bottom: calc(34px + 58px * var(--pet-scale, 1));
   z-index: 6;
   display: flex;
   flex-direction: column;

@@ -4,11 +4,13 @@ import spritesheetUrl from './assets/pets/neko-star/spritesheet.webp';
 import { CodexPanel } from './components/CodexPanel';
 import { PetContextMenu } from './components/PetContextMenu';
 import { PetSpeechBubble } from './components/PetSpeechBubble';
+import { PetScaleHandle } from './components/PetScaleHandle';
 import { QuickCommandInput } from './components/QuickCommandInput';
 import { SettingsPanel } from './components/SettingsPanel';
 import { TaskStatusLights } from './components/TaskStatusLights';
 import { PetActionRegistry } from './pet/PetActionRegistry';
 import { PetRenderer } from './pet/PetRenderer';
+import { usePetScale } from './hooks/usePetScale';
 import type { PetActionContext, PetAnimationState, PetDefinition } from './pet/types';
 import {
   applyProgressEvents,
@@ -114,6 +116,13 @@ export function App() {
   const resetVisualTimerRef = useRef<number | null>(null);
   const registry = useMemo(createActionRegistry, []);
   const actions = useMemo(() => registry.list(), [registry]);
+  const {
+    showScaleHandle,
+    handleScalePointerDown,
+    petStageStyle,
+    setIsHovered: setIsPetHovered,
+    isScaling,
+  } = usePetScale();
 
   const context = useMemo<PetActionContext>(
     () => ({
@@ -330,13 +339,23 @@ export function App() {
   return (
     <main
       className="pet-stage"
+      style={petStageStyle}
       onClick={() => setMenuPosition(null)}
       onContextMenu={(event) => {
         event.preventDefault();
         setMenuPosition({ x: event.clientX, y: event.clientY });
       }}
     >
-      <section className="pet-shell" aria-label={`${pet.displayName} desktop pet`}>
+      <section
+        className="pet-shell"
+        aria-label={`${pet.displayName} desktop pet`}
+        onMouseEnter={() => setIsPetHovered(true)}
+        onMouseLeave={() => {
+          if (!isScaling) {
+            setIsPetHovered(false);
+          }
+        }}
+      >
         <button
           type="button"
           className="pet-double-click-target"
@@ -349,6 +368,7 @@ export function App() {
         >
           <PetRenderer spritesheetUrl={spritesheetUrl} state={state} />
         </button>
+        {showScaleHandle && <PetScaleHandle onPointerDown={handleScalePointerDown} />}
       </section>
 
       <TaskStatusLights steps={taskSteps} />
