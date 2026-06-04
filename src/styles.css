@@ -219,10 +219,15 @@ button {
   white-space: pre-wrap;
 }
 
-.pet-speech-bubble-interrupt {
+.pet-speech-bubble-actions {
   position: absolute;
   right: 8px;
   bottom: 7px;
+  display: flex;
+  gap: 6px;
+}
+
+.pet-speech-bubble-interrupt {
   height: 22px;
   border: 1px solid rgb(255 255 255 / 12%);
   border-radius: 6px;
@@ -235,6 +240,22 @@ button {
 
 .pet-speech-bubble-interrupt:hover {
   background: rgb(255 92 92 / 18%);
+}
+
+.pet-speech-bubble-reply {
+  height: 22px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 8%);
+  color: #d8e8ff;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 8px;
+}
+
+.pet-speech-bubble-reply:hover {
+  background: rgb(79 220 137 / 18%);
+  color: #eafff2;
 }
 
 .task-status-lights {

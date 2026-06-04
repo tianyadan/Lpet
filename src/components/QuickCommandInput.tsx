@@ -2,6 +2,7 @@ interface QuickCommandInputProps {
   prompt: string;
   intent: CodexRunIntent;
   isRunning: boolean;
+  hasSession: boolean;
   onPromptChange: (prompt: string) => void;
   onIntentChange: (intent: CodexRunIntent) => void;
   onSubmit: () => void;
@@ -12,6 +13,7 @@ export function QuickCommandInput({
   prompt,
   intent,
   isRunning,
+  hasSession,
   onPromptChange,
   onIntentChange,
   onSubmit,
@@ -32,7 +34,7 @@ export function QuickCommandInput({
         value={prompt}
         disabled={isRunning}
         autoFocus
-        placeholder="输入快捷任务..."
+        placeholder={hasSession ? '继续追问当前对话...' : '输入快捷任务...'}
         onChange={(event) => onPromptChange(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {

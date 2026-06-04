@@ -161,6 +161,24 @@ export function App() {
     setTaskSteps(createIdleSteps());
   }
 
+  /** 用户主动关闭气泡：结束当前 Codex 会话上下文，下次从全新对话开始。 */
+  function closeQuickConversation() {
+    finishQuickVisualState();
+    setQuickSessionId(null);
+    rawQuickOutputRef.current = '';
+    setQuickPrompt('');
+  }
+
+  /** 在已有回复基础上继续追问，保留 sessionId 以便 CLI resume。 */
+  function handleBubbleReply() {
+    if (isQuickRunning) {
+      return;
+    }
+
+    setIsQuickCommandOpen(true);
+    setMenuPosition(null);
+  }
+
   useEffect(() => {
     const unsubscribe = window.petDesktop?.onCodexEvent((event) => {
       if (event.type === 'start') {
@@ -338,8 +356,9 @@ export function App() {
         text={bubbleText}
         isVisible={isBubbleVisible}
         isRunning={isQuickRunning}
-        onClose={finishQuickVisualState}
+        onClose={closeQuickConversation}
         onInterrupt={interruptQuickCommand}
+        onReply={handleBubbleReply}
       />
 
       {isQuickCommandOpen && (
@@ -347,6 +366,7 @@ export function App() {
           prompt={quickPrompt}
           intent={quickIntent}
           isRunning={isQuickRunning}
+          hasSession={Boolean(quickSessionId)}
           onPromptChange={setQuickPrompt}
           onIntentChange={setQuickIntent}
           onSubmit={submitQuickCommand}
