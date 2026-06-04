@@ -17,6 +17,35 @@ const FALLBACK_CLI_SEARCH_PATHS = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 const historyService = new InteractionHistoryService();
 const sessionIdPattern = /session id:\s*([0-9a-f-]{36})/i;
+/** 与 src/pet/constants.ts 保持一致，主进程按桌宠锚点换算窗口位置。 */
+const PET_CELL_WIDTH = 192;
+const PET_CELL_HEIGHT = 208;
+const PET_SHELL_BOTTOM_INSET = 24;
+const PET_WINDOW_EDGE_PAD = 4;
+function getCompactPetWindowSize(scale = 1) {
+    return {
+        width: Math.ceil(PET_CELL_WIDTH * scale + PET_WINDOW_EDGE_PAD),
+        height: Math.ceil(PET_CELL_HEIGHT * scale + PET_SHELL_BOTTOM_INSET + PET_WINDOW_EDGE_PAD),
+    };
+}
+function clampPetWindowPosition(window, anchorX, anchorY, scale) {
+    const bounds = window.getBounds();
+    const petVisualWidth = PET_CELL_WIDTH * scale;
+    const petVisualHeight = PET_CELL_HEIGHT * scale;
+    const display = screen.getDisplayMatching({
+        x: Math.round(anchorX),
+        y: Math.round(anchorY),
+        width: 1,
+        height: 1,
+    });
+    const workArea = display.workArea;
+    const clampedAnchorX = Math.min(Math.max(anchorX, workArea.x + petVisualWidth), workArea.x + workArea.width);
+    const clampedAnchorY = Math.min(Math.max(anchorY, workArea.y + petVisualHeight), workArea.y + workArea.height);
+    return {
+        x: Math.round(clampedAnchorX - bounds.width),
+        y: Math.round(clampedAnchorY - bounds.height + PET_SHELL_BOTTOM_INSET),
+    };
+}
 function loadRenderer(window, view) {
     const devServerUrl = process.env.VITE_DEV_SERVER_URL ?? (!app.isPackaged ? 'http://127.0.0.1:5173' : null);
     if (devServerUrl) {
@@ -34,15 +63,16 @@ function loadRenderer(window, view) {
 function createPetWindow() {
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workAreaSize;
+    const initialSize = getCompactPetWindowSize(1);
     const window = new BrowserWindow({
-        width: 440,
-        height: 560,
-        x: width - 320,
-        y: height - 360,
+        width: initialSize.width,
+        height: initialSize.height,
+        x: width - initialSize.width - 24,
+        y: height - initialSize.height - 24,
         frame: false,
         transparent: true,
-        resizable: true,
-        movable: true,
+        resizable: false,
+        movable: false,
         alwaysOnTop: true,
         hasShadow: false,
         skipTaskbar: true,
@@ -429,6 +459,41 @@ function registerIpc() {
             return;
         }
         window.setPosition(Math.round(x), Math.round(y));
+    });
+    ipcMain.handle('window:set-pet-anchor-position', (event, anchorX, anchorY, scale) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (!window || typeof anchorX !== 'number' || typeof anchorY !== 'number') {
+            return;
+        }
+        const normalizedScale = typeof scale === 'number' && Number.isFinite(scale) ? scale : 1;
+        const nextPosition = clampPetWindowPosition(window, anchorX, anchorY, normalizedScale);
+        window.setPosition(nextPosition.x, nextPosition.y);
+    });
+    ipcMain.handle('pet:set-mouse-passthrough', (event, ignore) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (!window || typeof ignore !== 'boolean') {
+            return;
+        }
+        if (ignore) {
+            window.setIgnoreMouseEvents(true, { forward: true });
+            return;
+        }
+        window.setIgnoreMouseEvents(false);
+    });
+    ipcMain.handle('window:set-size-keep-bottom-right', (event, width, height) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (!window || typeof width !== 'number' || typeof height !== 'number') {
+            return;
+        }
+        const bounds = window.getBounds();
+        const nextWidth = Math.max(64, Math.round(width));
+        const nextHeight = Math.max(64, Math.round(height));
+        window.setBounds({
+            x: bounds.x + bounds.width - nextWidth,
+            y: bounds.y + bounds.height - nextHeight,
+            width: nextWidth,
+            height: nextHeight,
+        });
     });
     ipcMain.handle('codex:check-installations', () => checkCodexInstallations());
     ipcMain.handle('codex:run', (_event, prompt, target, sessionId, intent) => {

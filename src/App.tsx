@@ -12,6 +12,8 @@ import { PetActionRegistry } from './pet/PetActionRegistry';
 import { PetRenderer } from './pet/PetRenderer';
 import { usePetScale } from './hooks/usePetScale';
 import { usePetDrag } from './hooks/usePetDrag';
+import { usePetWindowLayout, applyPetWindowLayout } from './hooks/usePetWindowLayout';
+import { usePetMousePassthrough } from './hooks/usePetMousePassthrough';
 import type { PetActionContext, PetAnimationState, PetDefinition } from './pet/types';
 import {
   applyProgressEvents,
@@ -118,6 +120,7 @@ export function App() {
   const petAnimationRef = useRef<PetAnimationState>('idle');
   const isQuickRunningRef = useRef(false);
   const [isPetDragging, setIsPetDragging] = useState(false);
+  const [isExpressionMenuOpen, setIsExpressionMenuOpen] = useState(false);
   const registry = useMemo(createActionRegistry, []);
   const actions = useMemo(() => registry.list(), [registry]);
   const {
@@ -127,17 +130,30 @@ export function App() {
     setIsHovered: setIsPetHovered,
     isHovered: isPetHovered,
     isScaling,
+    scale: petScale,
   } = usePetScale();
 
   // WHY：悬停跳跃是展示层优先级，不能覆盖拖拽方向、AI 任务和缩放把手操作。
   const petDisplayState: PetAnimationState =
     isPetDragging || isQuickRunning || isScaling ? state : isPetHovered ? 'jumping' : state;
 
+  usePetWindowLayout({
+    scale: petScale,
+    isBubbleVisible,
+    isQuickCommandOpen,
+    isSettingsPanelOpen,
+    hasContextMenu: Boolean(menuPosition),
+    isExpressionMenuOpen,
+  });
+
+  usePetMousePassthrough(view === 'pet', isPetDragging || isScaling);
+
   petAnimationRef.current = state;
   isQuickRunningRef.current = isQuickRunning;
 
   const { handlePetPointerDown, didDragRef } = usePetDrag({
     disabled: isScaling,
+    petScale,
     onDragStart: () => {
       preDragStateRef.current = petAnimationRef.current;
       setIsPetDragging(true);
@@ -168,8 +184,34 @@ export function App() {
     },
   });
 
-  const context = useMemo<PetActionContext>(
-    () => ({
+  /** 在展示快捷输入前先扩窗口，避免首帧左缘被裁切。 */
+  async function openQuickCommandPanel() {
+    await applyPetWindowLayout({
+      scale: petScale,
+      isBubbleVisible,
+      isQuickCommandOpen: true,
+      isSettingsPanelOpen,
+      hasContextMenu: Boolean(menuPosition),
+      isExpressionMenuOpen,
+    });
+    setIsQuickCommandOpen(true);
+    setMenuPosition(null);
+  }
+
+  /** 在展示设置面板前先扩窗口，避免首帧裁切。 */
+  async function openSettingsPanelWithLayout() {
+    await applyPetWindowLayout({
+      scale: petScale,
+      isBubbleVisible,
+      isQuickCommandOpen,
+      isSettingsPanelOpen: true,
+      hasContextMenu: Boolean(menuPosition),
+      isExpressionMenuOpen,
+    });
+    setIsSettingsPanelOpen(true);
+  }
+
+  const context: PetActionContext = {
       setState: (nextState, durationMs) => {
         setStateValue(nextState);
         if (durationMs) {
@@ -180,7 +222,7 @@ export function App() {
         await window.petDesktop?.openCodexPanel();
       },
       openSettingsPanel: () => {
-        setIsSettingsPanelOpen(true);
+        void openSettingsPanelWithLayout();
       },
       hide: async () => {
         await window.petDesktop?.hide();
@@ -188,9 +230,7 @@ export function App() {
       quit: async () => {
         await window.petDesktop?.quit();
       },
-    }),
-    [],
-  );
+    };
 
   function scheduleTaskVisualReset(delayMs = 18000) {
     if (resetVisualTimerRef.current !== null) {
@@ -228,8 +268,7 @@ export function App() {
       return;
     }
 
-    setIsQuickCommandOpen(true);
-    setMenuPosition(null);
+    void openQuickCommandPanel();
   }
 
   useEffect(() => {
@@ -382,13 +421,9 @@ export function App() {
 
   return (
     <main
-      className="pet-stage"
+      className={`pet-stage${isQuickCommandOpen ? ' pet-stage-quick-open' : ''}`}
       style={petStageStyle}
       onClick={() => setMenuPosition(null)}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        setMenuPosition({ x: event.clientX, y: event.clientY });
-      }}
     >
       <section
         className={`pet-shell${isPetDragging ? ' pet-shell-dragging' : ''}`}
@@ -398,6 +433,20 @@ export function App() {
           if (!isScaling && !isPetDragging) {
             setIsPetHovered(false);
           }
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          void applyPetWindowLayout({
+            scale: petScale,
+            isBubbleVisible,
+            isQuickCommandOpen,
+            isSettingsPanelOpen,
+            hasContextMenu: true,
+            isExpressionMenuOpen,
+          }).then(() => {
+            setMenuPosition({ x: event.clientX, y: event.clientY });
+          });
         }}
       >
         <button
@@ -412,8 +461,7 @@ export function App() {
             }
 
             event.stopPropagation();
-            setIsQuickCommandOpen(true);
-            setMenuPosition(null);
+            void openQuickCommandPanel();
           }}
         >
           <PetRenderer spritesheetUrl={spritesheetUrl} state={petDisplayState} />
@@ -450,7 +498,11 @@ export function App() {
           context={context}
           x={menuPosition.x}
           y={menuPosition.y}
-          onClose={() => setMenuPosition(null)}
+          onClose={() => {
+            setMenuPosition(null);
+            setIsExpressionMenuOpen(false);
+          }}
+          onExpressionMenuOpenChange={setIsExpressionMenuOpen}
         />
       )}
 

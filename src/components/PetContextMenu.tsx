@@ -8,9 +8,17 @@ interface PetContextMenuProps {
   x: number;
   y: number;
   onClose: () => void;
+  onExpressionMenuOpenChange?: (isOpen: boolean) => void;
 }
 
-export function PetContextMenu({ actions, context, x, y, onClose }: PetContextMenuProps) {
+export function PetContextMenu({
+  actions,
+  context,
+  x,
+  y,
+  onClose,
+  onExpressionMenuOpenChange,
+}: PetContextMenuProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const expressionTriggerRef = useRef<HTMLButtonElement>(null);
@@ -33,11 +41,23 @@ export function PetContextMenu({ actions, context, x, y, onClose }: PetContextMe
     }
   }
 
+  function openExpressionMenu() {
+    clearExpressionCloseTimer();
+    updateExpressionMenuPosition();
+    setIsExpressionMenuOpen(true);
+    onExpressionMenuOpenChange?.(true);
+  }
+
+  function closeExpressionMenu() {
+    setIsExpressionMenuOpen(false);
+    onExpressionMenuOpenChange?.(false);
+  }
+
   function scheduleExpressionMenuClose() {
     clearExpressionCloseTimer();
     // WHY: 父菜单和二级菜单之间有移动间隙，延迟关闭能避免用户还没点到表情菜单就被收起。
     closeExpressionTimerRef.current = window.setTimeout(() => {
-      setIsExpressionMenuOpen(false);
+      closeExpressionMenu();
       closeExpressionTimerRef.current = null;
     }, 1000);
   }
@@ -55,29 +75,42 @@ export function PetContextMenu({ actions, context, x, y, onClose }: PetContextMe
     const containerRect = containerElement.getBoundingClientRect();
     const menuRect = menuElement.getBoundingClientRect();
     const triggerRect = triggerElement.getBoundingClientRect();
-    const shouldOpenLeft = menuRect.right + submenuWidth + viewportGap > window.innerWidth;
+    const menuLeft = menuRect.left - containerRect.left;
+    const openSubmenuToRight = menuLeft + menuRect.width + submenuWidth + viewportGap <= window.innerWidth;
     const top = Math.min(
       Math.max(triggerRect.top - containerRect.top, 0),
       Math.max(0, window.innerHeight - containerRect.top - viewportGap - expressionActions.length * 34),
     );
 
     setExpressionMenuStyle({
-      left: shouldOpenLeft ? -submenuWidth + 2 : menuRect.width - 2,
+      left: openSubmenuToRight ? menuRect.width - 2 : -submenuWidth + 2,
       top,
       width: submenuWidth,
       maxHeight: Math.max(96, window.innerHeight - viewportGap * 2),
     });
   }
 
-  function openExpressionMenu() {
-    clearExpressionCloseTimer();
-    updateExpressionMenuPosition();
-    setIsExpressionMenuOpen(true);
-  }
-
   useEffect(() => {
-    return () => clearExpressionCloseTimer();
-  }, []);
+    return () => {
+      clearExpressionCloseTimer();
+      onExpressionMenuOpenChange?.(false);
+    };
+  }, [onExpressionMenuOpenChange]);
+
+  useLayoutEffect(() => {
+    if (!isExpressionMenuOpen) {
+      return;
+    }
+
+    updateExpressionMenuPosition();
+
+    function handleResize() {
+      updateExpressionMenuPosition();
+    }
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isExpressionMenuOpen, x, y, actions.length]);
 
   useLayoutEffect(() => {
     const menuElement = menuRef.current;

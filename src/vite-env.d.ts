@@ -3,11 +3,14 @@
 interface PetDesktopApi {
   hide: () => Promise<void>;
   quit: () => Promise<void>;
+  setMousePassthrough: (ignore: boolean) => Promise<void>;
   openCodexPanel: () => Promise<void>;
   closeCodexPanel: () => Promise<void>;
   resizeCurrentWindow: (width: number, height: number) => Promise<void>;
   getWindowBounds: () => Promise<{ x: number; y: number; width: number; height: number } | null>;
   setWindowPosition: (x: number, y: number) => Promise<void>;
+  setPetAnchorPosition: (anchorX: number, anchorY: number, scale?: number) => Promise<void>;
+  setWindowSizeKeepBottomRight: (width: number, height: number) => Promise<void>;
   checkCodexInstallations: () => Promise<CodexInstallationCheck>;
   runCodex: (
     prompt: string,

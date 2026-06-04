@@ -4,6 +4,7 @@ import {
   MIN_PET_SCALE,
   PET_SCALE_DRAG_RANGE,
   PET_SCALE_STORAGE_KEY,
+  PET_SHELL_BOTTOM_INSET,
 } from '../pet/constants';
 
 function clampScale(value: number): number {
@@ -82,6 +83,7 @@ export function usePetScale() {
 
   const petStageStyle = {
     '--pet-scale': scale,
+    '--pet-shell-bottom': `${PET_SHELL_BOTTOM_INSET}px`,
   } as CSSProperties;
 
   return {
