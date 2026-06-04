@@ -11,6 +11,7 @@ import { TaskStatusLights } from './components/TaskStatusLights';
 import { PetActionRegistry } from './pet/PetActionRegistry';
 import { PetRenderer } from './pet/PetRenderer';
 import { usePetScale } from './hooks/usePetScale';
+import { usePetDrag } from './hooks/usePetDrag';
 import type { PetActionContext, PetAnimationState, PetDefinition } from './pet/types';
 import {
   applyProgressEvents,
@@ -113,6 +114,10 @@ export function App() {
   const [taskSteps, setTaskSteps] = useState<TaskStep[]>(createIdleSteps);
   const rawQuickOutputRef = useRef('');
   const resetVisualTimerRef = useRef<number | null>(null);
+  const preDragStateRef = useRef<PetAnimationState>('idle');
+  const petAnimationRef = useRef<PetAnimationState>('idle');
+  const isQuickRunningRef = useRef(false);
+  const [isPetDragging, setIsPetDragging] = useState(false);
   const registry = useMemo(createActionRegistry, []);
   const actions = useMemo(() => registry.list(), [registry]);
   const {
@@ -122,6 +127,41 @@ export function App() {
     setIsHovered: setIsPetHovered,
     isScaling,
   } = usePetScale();
+
+  petAnimationRef.current = state;
+  isQuickRunningRef.current = isQuickRunning;
+
+  const { handlePetPointerDown, didDragRef } = usePetDrag({
+    disabled: isScaling,
+    onDragStart: () => {
+      preDragStateRef.current = petAnimationRef.current;
+      setIsPetDragging(true);
+      setMenuPosition(null);
+    },
+    onDirectionChange: (direction) => {
+      if (direction === 'left') {
+        setStateValue('running-left');
+      } else if (direction === 'right') {
+        setStateValue('running-right');
+      }
+    },
+    onDragEnd: () => {
+      setIsPetDragging(false);
+
+      if (isQuickRunningRef.current) {
+        setStateValue('running');
+        return;
+      }
+
+      const restoreState = preDragStateRef.current;
+      if (restoreState === 'running-left' || restoreState === 'running-right') {
+        setStateValue('idle');
+        return;
+      }
+
+      setStateValue(restoreState);
+    },
+  });
 
   const context = useMemo<PetActionContext>(
     () => ({
@@ -346,11 +386,11 @@ export function App() {
       }}
     >
       <section
-        className="pet-shell"
+        className={`pet-shell${isPetDragging ? ' pet-shell-dragging' : ''}`}
         aria-label={`${pet.displayName} desktop pet`}
         onMouseEnter={() => setIsPetHovered(true)}
         onMouseLeave={() => {
-          if (!isScaling) {
+          if (!isScaling && !isPetDragging) {
             setIsPetHovered(false);
           }
         }}
@@ -359,7 +399,13 @@ export function App() {
           type="button"
           className="pet-double-click-target"
           aria-label="打开快捷 AI 输入"
+          onPointerDown={handlePetPointerDown}
           onDoubleClick={(event) => {
+            if (didDragRef.current) {
+              didDragRef.current = false;
+              return;
+            }
+
             event.stopPropagation();
             setIsQuickCommandOpen(true);
             setMenuPosition(null);

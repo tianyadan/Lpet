@@ -99,9 +99,14 @@ button {
   height: 100%;
   border: 0;
   background: transparent;
-  cursor: pointer;
+  cursor: grab;
   padding: 0;
+  touch-action: none;
   -webkit-app-region: no-drag;
+}
+
+.pet-shell-dragging .pet-double-click-target {
+  cursor: grabbing;
 }
 
 .pet-renderer {

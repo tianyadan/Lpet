@@ -6,6 +6,8 @@ interface PetDesktopApi {
   openCodexPanel: () => Promise<void>;
   closeCodexPanel: () => Promise<void>;
   resizeCurrentWindow: (width: number, height: number) => Promise<void>;
+  getWindowBounds: () => Promise<{ x: number; y: number; width: number; height: number } | null>;
+  setWindowPosition: (x: number, y: number) => Promise<void>;
   checkCodexInstallations: () => Promise<CodexInstallationCheck>;
   runCodex: (
     prompt: string,

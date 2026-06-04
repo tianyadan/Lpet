@@ -410,6 +410,26 @@ function registerIpc() {
         }
         window.setSize(Math.max(320, Math.round(width)), Math.max(340, Math.round(height)));
     });
+    ipcMain.handle('window:get-bounds', (event) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (!window) {
+            return null;
+        }
+        const bounds = window.getBounds();
+        return {
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+        };
+    });
+    ipcMain.handle('window:set-position', (event, x, y) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (!window || typeof x !== 'number' || typeof y !== 'number') {
+            return;
+        }
+        window.setPosition(Math.round(x), Math.round(y));
+    });
     ipcMain.handle('codex:check-installations', () => checkCodexInstallations());
     ipcMain.handle('codex:run', (_event, prompt, target, sessionId, intent) => {
         if (typeof prompt !== 'string') {

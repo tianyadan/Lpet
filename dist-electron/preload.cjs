@@ -7,6 +7,8 @@ electron_1.contextBridge.exposeInMainWorld('petDesktop', {
     openCodexPanel: () => electron_1.ipcRenderer.invoke('codex-panel:open'),
     closeCodexPanel: () => electron_1.ipcRenderer.invoke('codex-panel:close'),
     resizeCurrentWindow: (width, height) => electron_1.ipcRenderer.invoke('window:resize-current', width, height),
+    getWindowBounds: () => electron_1.ipcRenderer.invoke('window:get-bounds'),
+    setWindowPosition: (x, y) => electron_1.ipcRenderer.invoke('window:set-position', x, y),
     checkCodexInstallations: () => electron_1.ipcRenderer.invoke('codex:check-installations'),
     runCodex: (prompt, target, sessionId, intent) => electron_1.ipcRenderer.invoke('codex:run', prompt, target, sessionId, intent),
     cancelCodex: () => electron_1.ipcRenderer.invoke('codex:cancel'),
