@@ -1,47 +1,148 @@
-# Codex Pet Clone
+# Lpet
 
-独立桌面宠物运行时，使用 Electron + React + TypeScript + Vite 实现。当前版本复刻 Codex 宠物的基础动画机制，并使用已经生成好的 Neko Star spritesheet。
+Lpet is a desktop AI pet built with Electron, React, TypeScript, and Vite. It turns local agents, model providers, skills, memory, reminders, and quick translation into a small always-on-top desktop companion.
 
-## 功能
+The product direction is simple: keep the pet visually lightweight, keep animations controllable, and put most extensibility into tools, skills, and workflows.
 
-- 透明无边框桌宠窗口
-- 始终置顶
-- 支持拖拽移动窗口
-- 支持 Codex 同款 8x9 spritesheet 动画图集
-- 支持 `idle`、`running`、`waiting`、`failed`、`review`、`jumping`、`waving` 等状态
-- 右键菜单切换动作
-- 支持收起到托盘
+## Product Model
 
-## 运行
+Lpet is designed as a personal agent entry point on the desktop.
+
+- **Pet UI**: a small transparent desktop pet with idle, work, waiting, review, failed, waving, jumping, and drag animations.
+- **Quick input**: double-click the pet to ask questions or run local tasks.
+- **Agent runtime**: Codex CLI can execute local tasks, while configured model providers handle fast Q&A and translation.
+- **Skills**: local skills extend workflows such as scheduled reminders or daily reports.
+- **Memory**: local SQLite stores interaction history and pet identity.
+- **Settings**: configure CLI tools, model providers, pet identity, and translation shortcuts.
+
+## Demo
+
+### Agent Actions
+
+![Agent actions](docs/gif/action.gif)
+
+### Scheduled Reminder
+
+![Scheduled reminder](docs/gif/scheduled.gif)
+
+### Memory
+
+![Memory](docs/gif/Memory.gif)
+
+### Pet Animation
+
+![Pet jump](docs/gif/jump.gif)
+
+## Features
+
+- Transparent, frameless, always-on-top desktop pet window.
+- Right-click menu for settings, expressions, window dialog, and tray actions.
+- Double-click quick command panel with Q&A and task modes.
+- Model provider support for Qwen and DeepSeek.
+- Codex CLI integration for local task execution.
+- Skills picker with local skill discovery.
+- Scheduled reminder skill backed by SQLite polling.
+- Pet identity settings: name, owner, age, gender, hobbies, and bio.
+- Interaction memory stored locally.
+- Quick translation shortcut with configurable target language.
+- Image upload support when a vision model is configured.
+- Task status lights for multi-step agent work.
+- Copy button for AI replies.
+- Per-task elevated retry when Codex CLI hits sandbox permission issues.
+
+## Installation
+
+Requirements:
+
+- Node.js 22+
+- npm
+- macOS or Windows
+- Optional: Codex CLI for local task execution
+
+Install dependencies:
 
 ```bash
 npm install
+```
+
+Start development mode:
+
+```bash
 npm run dev
 ```
 
-## 开发约束
+Build the renderer and Electron main process:
 
-后续让 AI 或开发者修改本项目时，先阅读：
+```bash
+npm run build
+```
 
-- `AGENTS.md`
-- `docs/DEVELOPMENT_GUIDE.md`
+Preview the Vite renderer:
 
-## 玩法扩展位置
+```bash
+npm run preview
+```
 
-后续投喂、摸头、换装、情侣互动等玩法，都应该通过 `PetActionRegistry` 注册，不直接写死在渲染组件里。
+## Deployment
 
-关键文件：
+This repository currently provides the Electron app source and build output scripts. Packaging into `.dmg`, `.exe`, or installer formats is not enabled yet.
 
-- `src/pet/PetActionRegistry.ts`
-- `src/App.tsx`
-- `src/pet/PetRenderer.tsx`
-- `electron/main.ts`
+Recommended next step for distribution:
 
-## 设计说明
+- Add `electron-builder` or `electron-forge`.
+- Configure macOS and Windows targets.
+- Keep user model API keys, local memory, and skill configs stored on the user's machine.
 
-当前只复刻本地桌宠基础能力，远程情侣互动先不接入。后续接服务端时，建议新增：
+For development usage, run:
 
-- `PetProfileStore`：本地状态持久化
-- `FeedingService`：投喂业务
-- `CoupleSyncService`：WebSocket 跨端同步
-- `InteractionEventQueue`：离线事件队列
+```bash
+npm run dev
+```
+
+## Project Structure
+
+```text
+.
+├── electron/                  # Electron main process, IPC, CLI/model/reminder services
+│   ├── main.ts
+│   ├── preload.cts
+│   ├── prompts/               # Prompt templates
+│   └── services/              # SQLite-backed local services
+├── src/                       # React renderer
+│   ├── assets/                # Pet sprites and provider logos
+│   ├── components/            # UI components
+│   ├── hooks/                 # Window, drag, scale, mouse passthrough hooks
+│   ├── pet/                   # Pet renderer, animation, constants, action registry
+│   └── utils/                 # Output parsing and image helpers
+├── skills/                    # Local skills
+│   ├── scheduled-reminder/
+│   └── send-daily-report/
+├── docs/
+│   ├── DEVELOPMENT_GUIDE.md
+│   └── gif/                   # README demo GIFs
+├── dist-electron/             # Compiled Electron files
+└── scripts/                   # Build helper scripts
+```
+
+## Development Guide
+
+Before asking an AI agent or contributor to modify this project, read:
+
+- [AGENTS.md](AGENTS.md)
+- [docs/DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md)
+
+Core principles:
+
+- Keep UI components reusable and scoped.
+- Keep IPC explicit and safe.
+- Put prompt templates under `electron/prompts`.
+- Put workflow extensions under `skills`.
+- Keep local data private and stored on the user's machine.
+
+## Roadmap
+
+- Package desktop installers for macOS and Windows.
+- Add more model providers.
+- Add more official skills.
+- Add richer pet states and user-configurable personalities.
+- Add optional cross-device or partner workflows through a user-owned server.
