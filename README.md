@@ -1,5 +1,7 @@
 # Lpet
 
+[简体中文](README.zh-CN.md) | English
+
 Lpet is a desktop AI pet built with Electron, React, TypeScript, and Vite. It turns local agents, model providers, skills, memory, reminders, and quick translation into a small always-on-top desktop companion.
 
 The product direction is simple: keep the pet visually lightweight, keep animations controllable, and put most extensibility into tools, skills, and workflows.
