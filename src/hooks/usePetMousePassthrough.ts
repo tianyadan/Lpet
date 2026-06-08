@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 /** 可接收鼠标交互的浮层选择器，空白透明区域应穿透到桌面。 */
 const INTERACTIVE_SELECTOR =
-  '.pet-shell, .quick-command, .pet-speech-bubble, .task-status-lights, .pet-menu-container, .settings-panel';
+  '.pet-shell, .quick-command, .pet-speech-bubble, .pet-sent-image, .zoomable-image-expanded, .task-status-lights, .pet-menu-container, .settings-panel';
 
 /**
  * 根据鼠标是否悬停在桌宠/面板上，动态切换 Electron 窗口鼠标穿透。

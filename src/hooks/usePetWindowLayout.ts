@@ -29,5 +29,7 @@ export function usePetWindowLayout(state: PetWindowLayoutState) {
     state.isSettingsPanelOpen,
     state.hasContextMenu,
     state.isExpressionMenuOpen,
+    state.hasQuickCommandImage,
+    state.hasSentImagePreview,
   ]);
 }

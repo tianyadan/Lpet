@@ -14,8 +14,22 @@ contextBridge.exposeInMainWorld('petDesktop', {
   setWindowSizeKeepBottomRight: (width: number, height: number) =>
     ipcRenderer.invoke('window:set-size-keep-bottom-right', width, height),
   checkCodexInstallations: () => ipcRenderer.invoke('codex:check-installations'),
-  runCodex: (prompt: string, target: string, sessionId?: string | null, intent?: string) =>
-    ipcRenderer.invoke('codex:run', prompt, target, sessionId, intent),
+  listLocalSkills: () => ipcRenderer.invoke('skills:list'),
+  getPetIdentity: () => ipcRenderer.invoke('pet-identity:get'),
+  savePetIdentity: (identity: unknown) => ipcRenderer.invoke('pet-identity:save', identity),
+  listModelProviderConfigs: () => ipcRenderer.invoke('model-providers:list'),
+  saveModelProviderConfig: (config: unknown) => ipcRenderer.invoke('model-providers:save', config),
+  testModelProviderConnection: (config: unknown) => ipcRenderer.invoke('model-providers:test', config),
+  chatWithModelProvider: (input: unknown) => ipcRenderer.invoke('model-providers:chat', input),
+  analyzeImageWithVisionModel: (input: unknown) => ipcRenderer.invoke('model-providers:analyze-image', input),
+  getReminder: (id: string) => ipcRenderer.invoke('reminders:get', id),
+  completeReminder: (id: string) => ipcRenderer.invoke('reminders:complete', id),
+  snoozeReminder: (id: string, hours: number, minutes: number) => ipcRenderer.invoke('reminders:snooze', id, hours, minutes),
+  closeReminder: (id: string) => ipcRenderer.invoke('reminders:close', id),
+  getTranslationConfig: () => ipcRenderer.invoke('translation:get-config'),
+  saveTranslationConfig: (config: unknown) => ipcRenderer.invoke('translation:save-config', config),
+  runCodex: (prompt: string, target: string, sessionId?: string | null, intent?: string, elevated?: boolean) =>
+    ipcRenderer.invoke('codex:run', prompt, target, sessionId, intent, elevated),
   cancelCodex: () => ipcRenderer.invoke('codex:cancel'),
   onCodexEvent: (callback: (event: unknown) => void) => {
     const listener = (_event: IpcRendererEvent, payload: unknown) => callback(payload);

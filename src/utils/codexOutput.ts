@@ -25,6 +25,7 @@ export function removeProtocolTags(text: string): string {
     .replace(planPattern, '')
     .replace(progressPattern, '')
     .replace(/<CodexPetHistory>[\s\S]*?<\/CodexPetHistory>/gi, '')
+    .replace(/<CodexPetIdentity>[\s\S]*?<\/CodexPetIdentity>/gi, '')
     .replace(/你正在被一个桌面宠物应用调用。[\s\S]*?用户原始请求：/g, '')
     .replace(/^OpenAI Codex v[\s\S]*?--------\n/m, '')
     .replace(/^workdir:[\s\S]*?--------\n/m, '')

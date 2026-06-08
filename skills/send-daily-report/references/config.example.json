@@ -1,0 +1,19 @@
+{
+  "xlsx_path": "/Users/tianhaowen/Desktop/company/田浩文-日报.xlsx",
+  "active_sheet": "2026",
+  "excel_layout": "unified",
+  "smtp": {
+    "host": "smtp.163.com",
+    "port": 465,
+    "use_ssl": true,
+    "username": "your_name@163.com",
+    "password": "YOUR_163_SMTP_AUTH_CODE"
+  },
+  "from_name": "田浩文",
+  "mail": {
+    "to": ["leader@company.com"],
+    "cc": ["team@company.com"],
+    "default_subject_prefix": "工作日报"
+  },
+  "reporter_display_name": "田浩文"
+}

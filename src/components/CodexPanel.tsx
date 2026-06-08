@@ -264,7 +264,7 @@ export function CodexPanel({ isOpen, detached = false, onClose, onRunningChange 
         className="codex-panel-header codex-panel-drag-handle"
         onPointerDown={detached ? undefined : startDrag}
       >
-        <span>Codex Agent</span>
+        <span>Agent</span>
         <div className="codex-header-actions" onPointerDown={(event) => event.stopPropagation()}>
           <button type="button" className="codex-text-button" disabled={isRunning} onClick={resetConversation}>
             新会话
@@ -310,7 +310,7 @@ export function CodexPanel({ isOpen, detached = false, onClose, onRunningChange 
         className="codex-input"
         value={prompt}
         disabled={isRunning}
-        placeholder={sessionId ? '继续追问当前 Codex 会话...' : '输入要交给本机 Codex CLI 执行的任务...'}
+        placeholder={sessionId ? '继续追问当前会话...' : '输入要交给本机CLI 执行的任务...'}
         onChange={(event) => setPrompt(event.target.value)}
         onKeyDown={(event) => {
           if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {

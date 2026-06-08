@@ -21,7 +21,10 @@ export const PET_SCALE_STORAGE_KEY = 'codex-pet-clone:pet-scale';
 export const PET_SCALE_DRAG_RANGE = 320;
 
 const QUICK_COMMAND_PANEL_WIDTH = 280;
-const QUICK_COMMAND_PANEL_HEIGHT = 152;
+const QUICK_COMMAND_PANEL_HEIGHT = 184;
+const QUICK_COMMAND_IMAGE_ROW_HEIGHT = 72;
+const SENT_IMAGE_PREVIEW_HEIGHT = 72;
+const ZOOMABLE_IMAGE_EXPANDED_SIZE = 280;
 const SPEECH_BUBBLE_WIDTH = 240;
 const SPEECH_BUBBLE_HEIGHT = 122;
 const CONTEXT_MENU_WIDTH = 128;
@@ -37,6 +40,12 @@ export interface PetWindowLayoutState {
   isSettingsPanelOpen: boolean;
   hasContextMenu: boolean;
   isExpressionMenuOpen: boolean;
+  /** 快捷输入里已选图片预览行。 */
+  hasQuickCommandImage: boolean;
+  /** 快捷输入框正在展示 Skills 下拉菜单。 */
+  hasQuickCommandSkillMenu: boolean;
+  /** 气泡上方展示已发送图片。 */
+  hasSentImagePreview: boolean;
 }
 
 /** 仅桌宠本体时的窗口尺寸。 */
@@ -63,12 +72,28 @@ export function computeRequiredPetWindowSize(state: PetWindowLayoutState): { wid
   }
 
   if (state.isQuickCommandOpen) {
+    const quickCommandHeight =
+      QUICK_COMMAND_PANEL_HEIGHT + (state.hasQuickCommandImage ? QUICK_COMMAND_IMAGE_ROW_HEIGHT + 8 : 0);
     width = Math.max(width, QUICK_COMMAND_PANEL_WIDTH + pad * 2);
-    height = Math.max(height, petStackBase + 12 + QUICK_COMMAND_PANEL_HEIGHT + pad);
+    height = Math.max(height, petStackBase + 12 + quickCommandHeight + pad);
   }
 
   if (state.isBubbleVisible && state.isQuickCommandOpen) {
-    height = petStackBase + 12 + SPEECH_BUBBLE_HEIGHT + 12 + QUICK_COMMAND_PANEL_HEIGHT + pad;
+    const quickCommandHeight =
+      QUICK_COMMAND_PANEL_HEIGHT + (state.hasQuickCommandImage ? QUICK_COMMAND_IMAGE_ROW_HEIGHT + 8 : 0);
+    height = petStackBase + 12 + SPEECH_BUBBLE_HEIGHT + 12 + quickCommandHeight + pad;
+  }
+
+  if (state.hasSentImagePreview) {
+    width = Math.max(width, ZOOMABLE_IMAGE_EXPANDED_SIZE + pad * 2);
+    height = Math.max(height, petStackBase + 12 + SENT_IMAGE_PREVIEW_HEIGHT + pad);
+  }
+
+  if (state.isBubbleVisible && state.hasSentImagePreview) {
+    height = Math.max(
+      height,
+      petStackBase + 12 + SENT_IMAGE_PREVIEW_HEIGHT + 8 + SPEECH_BUBBLE_HEIGHT + pad,
+    );
   }
 
   if (state.isSettingsPanelOpen) {
