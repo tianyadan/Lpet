@@ -124,11 +124,6 @@ function createActionRegistry(): PetActionRegistry {
     run: ({ setState }) => setState('failed', 2200),
   });
   registry.register({
-    id: 'hide',
-    label: '收起',
-    run: ({ hide }) => hide(),
-  });
-  registry.register({
     id: 'quit',
     label: '退出',
     run: ({ quit }) => quit(),
@@ -403,25 +398,25 @@ export function App() {
   }
 
   const context: PetActionContext = {
-      setState: (nextState, durationMs) => {
-        setStateValue(nextState);
-        if (durationMs) {
-          window.setTimeout(() => setStateValue('idle'), durationMs);
-        }
-      },
-      openCodexPanel: async () => {
-        await window.petDesktop?.openCodexPanel();
-      },
-      openSettingsPanel: () => {
-        void openSettingsPanelWithLayout();
-      },
-      hide: async () => {
-        await window.petDesktop?.hide();
-      },
-      quit: async () => {
-        await window.petDesktop?.quit();
-      },
-    };
+    setState: (nextState, durationMs) => {
+      setStateValue(nextState);
+      if (durationMs) {
+        window.setTimeout(() => setStateValue('idle'), durationMs);
+      }
+    },
+    openCodexPanel: async () => {
+      await window.petDesktop?.openCodexPanel();
+    },
+    openSettingsPanel: () => {
+      void openSettingsPanelWithLayout();
+    },
+    hide: async () => {
+      await window.petDesktop?.hide();
+    },
+    quit: async () => {
+      await window.petDesktop?.quit();
+    },
+  };
 
   function clearTaskVisualReset() {
     if (resetVisualTimerRef.current !== null) {
@@ -693,9 +688,9 @@ export function App() {
             step.status === 'idle'
               ? step
               : {
-                  ...step,
-                  status: event.code === 0 ? 'done' : step.status === 'running' ? 'failed' : step.status,
-                },
+                ...step,
+                status: event.code === 0 ? 'done' : step.status === 'running' ? 'failed' : step.status,
+              },
           ),
         );
         scheduleTaskVisualReset(assistantText ? 30000 : 18000);
