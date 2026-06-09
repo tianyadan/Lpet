@@ -60,10 +60,23 @@ export function QuickCommandInput({
   const skillOptions = useMemo(() => {
     const normalizedQuery = skillQuery.trim().toLowerCase();
     const enabledSkills = skills.filter((skill) => skill.enabled);
+    if (normalizedQuery.length > 4) {
+      return [];
+    }
+
     const matchedSkills = normalizedQuery
-      ? enabledSkills.filter((skill) =>
-          `${skill.name} ${skill.description}`.toLowerCase().includes(normalizedQuery),
-        )
+      ? enabledSkills
+          .filter((skill) =>
+            `${skill.name} ${skill.description}`.toLowerCase().includes(normalizedQuery),
+          )
+          .sort((left, right) => {
+            const leftStartsWith = left.name.toLowerCase().startsWith(normalizedQuery);
+            const rightStartsWith = right.name.toLowerCase().startsWith(normalizedQuery);
+            if (leftStartsWith === rightStartsWith) {
+              return left.name.localeCompare(right.name, 'zh-Hans-CN');
+            }
+            return leftStartsWith ? -1 : 1;
+          })
       : enabledSkills;
 
     return matchedSkills.slice(0, 8);
@@ -149,7 +162,14 @@ export function QuickCommandInput({
       return;
     }
 
-    setSkillQuery(slashMatch[1] ?? '');
+    const nextSkillQuery = slashMatch[1] ?? '';
+    if (nextSkillQuery.length > 4) {
+      setIsSkillMenuOpen(false);
+      setSkillQuery(nextSkillQuery);
+      return;
+    }
+
+    setSkillQuery(nextSkillQuery);
     setIsSkillMenuOpen(true);
   }
 

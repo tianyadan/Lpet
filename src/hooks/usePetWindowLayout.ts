@@ -31,5 +31,7 @@ export function usePetWindowLayout(state: PetWindowLayoutState) {
     state.isExpressionMenuOpen,
     state.hasQuickCommandImage,
     state.hasSentImagePreview,
+    state.hasReminderIndicator,
+    state.isReminderPanelOpen,
   ]);
 }

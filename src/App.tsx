@@ -1,24 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import deepseekLogoUrl from './assets/model-providers/deepseek-logo.png';
 import qwenLogoUrl from './assets/model-providers/qwen-logo.png';
-import petDefinition from './assets/pets/neko-star/pet.json';
-import spritesheetUrl from './assets/pets/neko-star/spritesheet.webp';
 import { CodexPanel } from './components/CodexPanel';
 import { PetContextMenu } from './components/PetContextMenu';
 import { PetSpeechBubble } from './components/PetSpeechBubble';
 import { PetScaleHandle } from './components/PetScaleHandle';
 import { QuickCommandInput, type QuickCommandTargetOption } from './components/QuickCommandInput';
 import { ReminderWindow } from './components/ReminderWindow';
+import { ReminderTaskPanel } from './components/ReminderTaskPanel';
 import { SentImagePreview } from './components/SentImagePreview';
 import { SettingsPanel } from './components/SettingsPanel';
 import { TaskStatusLights } from './components/TaskStatusLights';
 import { PetActionRegistry } from './pet/PetActionRegistry';
 import { PetRenderer } from './pet/PetRenderer';
+import { PET_SKIN_STORAGE_KEY, builtInPetSkins } from './pet/skins';
 import { usePetScale } from './hooks/usePetScale';
 import { usePetDrag } from './hooks/usePetDrag';
 import { usePetWindowLayout, applyPetWindowLayout } from './hooks/usePetWindowLayout';
 import { usePetMousePassthrough } from './hooks/usePetMousePassthrough';
-import type { PetActionContext, PetAnimationState, PetDefinition } from './pet/types';
+import type { PetActionContext, PetAnimationState } from './pet/types';
 import type { PetWindowLayoutState } from './pet/constants';
 import {
   applyProgressEvents,
@@ -30,7 +30,6 @@ import {
   type TaskStep,
 } from './utils/codexOutput';
 
-const pet = petDefinition as PetDefinition;
 const defaultCliStatus: CliInstallationStatus = { installed: false, path: null, source: null };
 const defaultInstallations: CodexInstallationCheck = {
   cli: defaultCliStatus,
@@ -54,6 +53,7 @@ const providerLabels: Record<ModelProviderId, string> = {
 };
 const sandboxPermissionFailurePattern =
   /(Operation not permitted|Permission denied|权限不足|权限被拒绝|沙箱|sandbox|not permitted|EPERM|EACCES)/i;
+const DISABLED_SKILLS_STORAGE_KEY = 'lpet:disabled-skill-ids';
 
 interface QuickCliRunRequest {
   prompt: string;
@@ -149,6 +149,16 @@ export function App() {
   const [quickIntent, setQuickIntent] = useState<CodexRunIntent>('chat');
   const [quickTargetId, setQuickTargetId] = useState('codex-cli');
   const [localSkills, setLocalSkills] = useState<LocalSkill[]>([]);
+  const [disabledSkillIds, setDisabledSkillIds] = useState<string[]>(() => {
+    try {
+      const parsedValue = JSON.parse(localStorage.getItem(DISABLED_SKILLS_STORAGE_KEY) ?? '[]');
+      return Array.isArray(parsedValue) ? parsedValue.filter((id): id is string => typeof id === 'string') : [];
+    } catch {
+      return [];
+    }
+  });
+  const [importedPetSkins, setImportedPetSkins] = useState<PetSkinOption[]>([]);
+  const [selectedPetSkinId, setSelectedPetSkinId] = useState(() => localStorage.getItem(PET_SKIN_STORAGE_KEY) ?? builtInPetSkins[0].id);
   const [selectedSkill, setSelectedSkill] = useState<LocalSkill | null>(null);
   const [isQuickSkillMenuOpen, setIsQuickSkillMenuOpen] = useState(false);
   const [installations, setInstallations] = useState<CodexInstallationCheck>(defaultInstallations);
@@ -158,6 +168,8 @@ export function App() {
   const [bubbleText, setBubbleText] = useState('');
   const [isBubbleVisible, setIsBubbleVisible] = useState(false);
   const [taskSteps, setTaskSteps] = useState<TaskStep[]>(createIdleSteps);
+  const [activeReminderTasks, setActiveReminderTasks] = useState<ReminderTask[]>([]);
+  const [isReminderPanelOpen, setIsReminderPanelOpen] = useState(false);
   const rawQuickOutputRef = useRef('');
   const lastQuickCliRunRef = useRef<QuickCliRunRequest | null>(null);
   const resetVisualTimerRef = useRef<number | null>(null);
@@ -168,6 +180,12 @@ export function App() {
   const [isExpressionMenuOpen, setIsExpressionMenuOpen] = useState(false);
   const registry = useMemo(createActionRegistry, []);
   const actions = useMemo(() => registry.list(), [registry]);
+  const petSkinOptions = useMemo(() => [...builtInPetSkins, ...importedPetSkins], [importedPetSkins]);
+  const activePetSkin = petSkinOptions.find((skin) => skin.id === selectedPetSkinId) ?? builtInPetSkins[0];
+  const skillsWithEnabledState = useMemo(
+    () => localSkills.map((skill) => ({ ...skill, enabled: !disabledSkillIds.includes(skill.id) })),
+    [disabledSkillIds, localSkills],
+  );
   const quickTargetOptions = useMemo<QuickCommandTargetOption[]>(() => {
     const cliOptions: QuickCommandTargetOption[] = installations.cli.installed
       ? [{ id: 'codex-cli', label: 'Codex CLI', kind: 'cli' }]
@@ -219,6 +237,8 @@ export function App() {
       hasQuickCommandImage: Boolean(quickAttachedImage),
       hasQuickCommandSkillMenu: isQuickSkillMenuOpen,
       hasSentImagePreview: Boolean(sentImagePreview),
+      hasReminderIndicator: activeReminderTasks.length > 0,
+      isReminderPanelOpen,
       ...overrides,
     };
   }
@@ -244,6 +264,74 @@ export function App() {
     setModelProviderConfigs(nextModelConfigs);
     setLocalSkills(nextLocalSkills);
   }
+
+  async function refreshImportedPetSkins() {
+    const nextSkins = await window.petDesktop?.listImportedPetSkins();
+    if (nextSkins) {
+      setImportedPetSkins(nextSkins);
+    }
+  }
+
+  async function refreshActiveReminders() {
+    const reminders = await window.petDesktop?.listActiveReminders();
+    if (reminders) {
+      setActiveReminderTasks(reminders);
+      if (reminders.length === 0) {
+        setIsReminderPanelOpen(false);
+      }
+    }
+  }
+
+  function selectPetSkin(skinId: string) {
+    setSelectedPetSkinId(skinId);
+    localStorage.setItem(PET_SKIN_STORAGE_KEY, skinId);
+  }
+
+  function toggleSkillEnabled(skillId: string, enabled: boolean) {
+    setDisabledSkillIds((current) => {
+      const nextIds = enabled
+        ? current.filter((id) => id !== skillId)
+        : Array.from(new Set([...current, skillId]));
+      localStorage.setItem(DISABLED_SKILLS_STORAGE_KEY, JSON.stringify(nextIds));
+      return nextIds;
+    });
+    if (!enabled && selectedSkill?.id === skillId) {
+      setSelectedSkill(null);
+    }
+  }
+
+  function fallbackToBuiltInPetSkin() {
+    if (selectedPetSkinId === builtInPetSkins[0].id) {
+      return;
+    }
+
+    selectPetSkin(builtInPetSkins[0].id);
+    setIsBubbleVisible(true);
+    setBubbleText('导入皮肤图片加载失败，已切回内置皮肤。请确认 spritesheet.webp 是可用图片。');
+  }
+
+  async function importPetSkin() {
+    const importedSkin = await window.petDesktop?.importPetSkinFolder();
+    if (!importedSkin) {
+      return null;
+    }
+
+    setImportedPetSkins((current) => {
+      const filtered = current.filter((skin) => skin.id !== importedSkin.id);
+      return [...filtered, importedSkin].sort((left, right) => left.displayName.localeCompare(right.displayName, 'zh-Hans-CN'));
+    });
+    selectPetSkin(importedSkin.id);
+    return importedSkin;
+  }
+
+  useEffect(() => {
+    void refreshImportedPetSkins();
+    void refreshActiveReminders();
+    const timer = window.setInterval(() => {
+      void refreshActiveReminders();
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const currentTarget = quickTargetOptions.find((option) => option.id === quickTargetId);
@@ -563,6 +651,12 @@ export function App() {
           : new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(remindAt);
         setBubbleText(`定时提醒已创建完成，我会在 ${formattedTime} 提醒你：${event.title}`);
         setTaskSteps(createIdleSteps());
+        void refreshActiveReminders();
+        return;
+      }
+
+      if (event.type === 'reminders-updated') {
+        void refreshActiveReminders();
         return;
       }
 
@@ -734,7 +828,7 @@ export function App() {
     >
       <section
         className={`pet-shell${isPetDragging ? ' pet-shell-dragging' : ''}`}
-        aria-label={`${pet.displayName} desktop pet`}
+        aria-label={`${activePetSkin.displayName} desktop pet`}
         onMouseEnter={() => setIsPetHovered(true)}
         onMouseLeave={() => {
           if (!isScaling && !isPetDragging) {
@@ -768,12 +862,41 @@ export function App() {
             void openQuickCommandPanel();
           }}
         >
-          <PetRenderer spritesheetUrl={spritesheetUrl} state={petDisplayState} />
+          <PetRenderer
+            spritesheetUrl={activePetSkin.spritesheetUrl}
+            state={petDisplayState}
+            onSpritesheetError={fallbackToBuiltInPetSkin}
+          />
         </button>
         {showScaleHandle && <PetScaleHandle onPointerDown={handleScalePointerDown} />}
       </section>
 
       <TaskStatusLights steps={taskSteps} />
+      {activeReminderTasks.length > 0 && (
+        <button
+          type="button"
+          className="reminder-indicator"
+          aria-label="查看定时任务"
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsReminderPanelOpen((current) => !current);
+          }}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 4.5 4.8 2.7 3.5 4.2l2.2 1.9A8.2 8.2 0 0 0 3.8 11.5c0 4.5 3.7 8.2 8.2 8.2s8.2-3.7 8.2-8.2c0-2-.7-3.9-1.9-5.3l2.2-1.9-1.3-1.5L17 4.5a8.1 8.1 0 0 0-10 0Z" />
+            <path d="M12 7.2v4.6l3.1 2.1" />
+            <path d="M8.7 20.3 7.6 22M15.3 20.3l1.1 1.7" />
+          </svg>
+          <span>{activeReminderTasks.length}</span>
+        </button>
+      )}
+      {isReminderPanelOpen && (
+        <ReminderTaskPanel
+          tasks={activeReminderTasks}
+          onClose={() => setIsReminderPanelOpen(false)}
+          onRefresh={refreshActiveReminders}
+        />
+      )}
       {sentImagePreview && (
         <SentImagePreview src={sentImagePreview} isBubbleVisible={isBubbleVisible} />
       )}
@@ -792,7 +915,7 @@ export function App() {
           attachedImage={quickAttachedImage}
           selectedTargetId={quickTargetId}
           targetOptions={quickTargetOptions}
-          skills={localSkills}
+          skills={skillsWithEnabledState}
           selectedSkill={selectedSkill}
           onSkillMenuOpenChange={setIsQuickSkillMenuOpen}
           canAttachImage={canAttachImage}
@@ -830,6 +953,12 @@ export function App() {
 
       <SettingsPanel
         isOpen={isSettingsPanelOpen}
+        petSkins={petSkinOptions}
+        selectedPetSkinId={activePetSkin.id}
+        onPetSkinSelect={selectPetSkin}
+        onPetSkinImport={importPetSkin}
+        skills={skillsWithEnabledState}
+        onSkillEnabledChange={toggleSkillEnabled}
         onClose={() => {
           setIsSettingsPanelOpen(false);
           // WHY：旧版本打开设置会误切 waiting，关闭时兜底恢复待机，避免动画卡住。

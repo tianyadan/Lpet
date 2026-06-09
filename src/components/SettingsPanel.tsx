@@ -8,11 +8,17 @@ import qwenLogoUrl from '../assets/model-providers/qwen-logo.png';
 
 interface SettingsPanelProps {
   isOpen: boolean;
+  petSkins: PetSkinOption[];
+  selectedPetSkinId: string;
+  onPetSkinSelect: (skinId: string) => void;
+  onPetSkinImport: () => Promise<PetSkinOption | null>;
+  skills: LocalSkill[];
+  onSkillEnabledChange: (skillId: string, enabled: boolean) => void;
   onClose: () => void;
 }
 
 type CliProviderId = 'codex' | 'cursor' | 'claude-code';
-type SettingsMenuKey = 'cli' | 'identity' | 'model-provider' | 'translation';
+type SettingsMenuKey = 'cli' | 'identity' | 'skin' | 'skills' | 'model-provider' | 'translation';
 
 interface CliProviderConfig {
   id: CliProviderId;
@@ -662,7 +668,145 @@ function TranslationPanel({
   );
 }
 
-export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
+function SkinPanel({
+  skins,
+  selectedSkinId,
+  isImporting,
+  message,
+  onSelect,
+  onImport,
+}: {
+  skins: PetSkinOption[];
+  selectedSkinId: string;
+  isImporting: boolean;
+  message: string;
+  onSelect: (skinId: string) => void;
+  onImport: () => void;
+}) {
+  return (
+    <section className="settings-skin" aria-label="皮肤">
+      <div className="settings-section-header">
+        <div>
+          <div className="settings-section-title">皮肤</div>
+          <p>选择当前桌宠外观。皮肤需要兼容 Codex 桌宠 8x9 spritesheet 动画协议。</p>
+        </div>
+      </div>
+
+      <div className="settings-skin-grid">
+        {skins.map((skin) => (
+          <button
+            key={skin.id}
+            type="button"
+            className={skin.id === selectedSkinId ? 'settings-skin-card settings-skin-card-active' : 'settings-skin-card'}
+            onClick={() => onSelect(skin.id)}
+          >
+            <span className="settings-skin-preview" style={{ backgroundImage: `url(${skin.spritesheetUrl})` }} />
+            <span className="settings-skin-info">
+              <strong>{skin.displayName}</strong>
+              <small>{skin.source === 'built-in' ? '内置皮肤' : '导入皮肤'}</small>
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="settings-import-hint">
+        <strong>导入说明</strong>
+        <span>点击“导入皮肤”后，请选择一个 Codex 适配的皮肤父文件夹；如果下载的是 zip，请先解压。</span>
+        <span>该文件夹必须包含：`pet.json` 和 `spritesheet.webp`。</span>
+        <span>`pet.json` 需要声明 `id`、`displayName`、`description`、`spritesheetPath`。</span>
+        <span>`spritesheet.webp` 需为 8 列 x 9 行图集，每帧 192 x 208，按当前 Codex 动画行协议排列。</span>
+      </div>
+
+      {message && (
+        <div className={message.includes('成功') || message.includes('已导入') ? 'settings-success' : 'settings-error'}>
+          {message}
+        </div>
+      )}
+
+      <div className="settings-section-actions">
+        <button type="button" className="settings-refresh-button settings-save-button" disabled={isImporting} onClick={onImport}>
+          {isImporting ? '导入中' : '导入皮肤'}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function SkillsPanel({
+  skills,
+  selectedSkillId,
+  onSelect,
+  onEnabledChange,
+}: {
+  skills: LocalSkill[];
+  selectedSkillId: string | null;
+  onSelect: (skillId: string) => void;
+  onEnabledChange: (skillId: string, enabled: boolean) => void;
+}) {
+  const selectedSkill = skills.find((skill) => skill.id === selectedSkillId) ?? skills[0] ?? null;
+
+  return (
+    <section className="settings-skills" aria-label="Skills">
+      <div className="settings-section-header">
+        <div>
+          <div className="settings-section-title">Skills</div>
+          <p>管理本地已安装的 Skills。禁用后，双击快捷输入中输入 `/` 不再显示该 Skill。</p>
+        </div>
+      </div>
+
+      {skills.length === 0 ? (
+        <div className="settings-empty-state">未发现本地 Skills。</div>
+      ) : (
+        <>
+          <div className="settings-skill-grid">
+            {skills.map((skill) => (
+              <button
+                key={skill.id}
+                type="button"
+                className={skill.id === selectedSkill?.id ? 'settings-skill-card settings-skill-card-active' : 'settings-skill-card'}
+                onClick={() => onSelect(skill.id)}
+              >
+                <span className={skill.enabled ? 'settings-skill-status settings-skill-status-enabled' : 'settings-skill-status'} />
+                <strong>{skill.name}</strong>
+                <small>{skill.source}</small>
+              </button>
+            ))}
+          </div>
+
+          {selectedSkill && (
+            <div className="settings-skill-detail">
+              <div>
+                <strong>{selectedSkill.name}</strong>
+                <span>{selectedSkill.source}</span>
+              </div>
+              <p>{selectedSkill.description || '这个 Skill 暂无简介。'}</p>
+              <code>{selectedSkill.entryPath}</code>
+              <label className="settings-toggle-row">
+                <input
+                  type="checkbox"
+                  checked={selectedSkill.enabled}
+                  onChange={(event) => onEnabledChange(selectedSkill.id, event.target.checked)}
+                />
+                <span>{selectedSkill.enabled ? '已启用' : '已禁用'}</span>
+              </label>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+export function SettingsPanel({
+  isOpen,
+  petSkins,
+  selectedPetSkinId,
+  onPetSkinSelect,
+  onPetSkinImport,
+  skills,
+  onSkillEnabledChange,
+  onClose,
+}: SettingsPanelProps) {
   const [status, setStatus] = useState<CodexInstallationCheck>(emptyStatus);
   const [activeMenu, setActiveMenu] = useState<SettingsMenuKey>('cli');
   const [isChecking, setIsChecking] = useState(false);
@@ -691,6 +835,9 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const [translationDraft, setTranslationDraft] = useState<TranslationConfigInput>(emptyTranslationConfig);
   const [isTranslationSaving, setIsTranslationSaving] = useState(false);
   const [translationMessage, setTranslationMessage] = useState('');
+  const [isSkinImporting, setIsSkinImporting] = useState(false);
+  const [skinMessage, setSkinMessage] = useState('');
+  const [selectedSettingsSkillId, setSelectedSettingsSkillId] = useState<string | null>(null);
   const selectedProvider = useMemo(
     () => cliProviders.find((provider) => provider.id === selectedProviderId) ?? null,
     [selectedProviderId],
@@ -888,6 +1035,23 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     }
   }
 
+  async function importPetSkin() {
+    setIsSkinImporting(true);
+    setSkinMessage('');
+
+    try {
+      const importedSkin = await onPetSkinImport();
+      if (importedSkin) {
+        setSkinMessage(`已导入并切换到 ${importedSkin.displayName}。`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setSkinMessage(message);
+    } finally {
+      setIsSkinImporting(false);
+    }
+  }
+
   useEffect(() => {
     if (isOpen) {
       setSelectedProviderId(null);
@@ -896,6 +1060,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       setIdentityErrorMessage('');
       setModelProviderMessage('');
       setTranslationMessage('');
+      setSkinMessage('');
+      setSelectedSettingsSkillId(null);
       setIsIdentityEditing(false);
       void refreshStatus();
       void refreshPetIdentity();
@@ -944,6 +1110,30 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             }}
           >
             宠物身份
+          </button>
+          <button
+            type="button"
+            className={activeMenu === 'skin' ? 'settings-sidebar-item settings-sidebar-item-active' : 'settings-sidebar-item'}
+            onClick={() => {
+              setActiveMenu('skin');
+              setSelectedProviderId(null);
+              setSelectedModelProviderId(null);
+              setSkinMessage('');
+            }}
+          >
+            皮肤
+          </button>
+          <button
+            type="button"
+            className={activeMenu === 'skills' ? 'settings-sidebar-item settings-sidebar-item-active' : 'settings-sidebar-item'}
+            onClick={() => {
+              setActiveMenu('skills');
+              setSelectedProviderId(null);
+              setSelectedModelProviderId(null);
+              setSelectedSettingsSkillId((current) => current ?? skills[0]?.id ?? null);
+            }}
+          >
+            Skills
           </button>
           <button
             type="button"
@@ -1021,6 +1211,26 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               }}
               onSave={savePetIdentity}
               onChange={setIdentityDraft}
+            />
+          )}
+
+          {activeMenu === 'skin' && (
+            <SkinPanel
+              skins={petSkins}
+              selectedSkinId={selectedPetSkinId}
+              isImporting={isSkinImporting}
+              message={skinMessage}
+              onSelect={onPetSkinSelect}
+              onImport={importPetSkin}
+            />
+          )}
+
+          {activeMenu === 'skills' && (
+            <SkillsPanel
+              skills={skills}
+              selectedSkillId={selectedSettingsSkillId}
+              onSelect={setSelectedSettingsSkillId}
+              onEnabledChange={onSkillEnabledChange}
             />
           )}
 

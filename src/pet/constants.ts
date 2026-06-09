@@ -27,6 +27,9 @@ const SENT_IMAGE_PREVIEW_HEIGHT = 72;
 const ZOOMABLE_IMAGE_EXPANDED_SIZE = 280;
 const SPEECH_BUBBLE_WIDTH = 240;
 const SPEECH_BUBBLE_HEIGHT = 122;
+const REMINDER_PANEL_WIDTH = 300;
+const REMINDER_PANEL_HEIGHT = 260;
+const REMINDER_INDICATOR_HEIGHT = 34;
 const CONTEXT_MENU_WIDTH = 128;
 const CONTEXT_SUBMENU_WIDTH = 136;
 const CONTEXT_MENU_ITEM_HEIGHT = 34;
@@ -46,6 +49,10 @@ export interface PetWindowLayoutState {
   hasQuickCommandSkillMenu: boolean;
   /** 气泡上方展示已发送图片。 */
   hasSentImagePreview: boolean;
+  /** 桌宠头顶的提醒入口。 */
+  hasReminderIndicator: boolean;
+  /** 提醒任务列表面板。 */
+  isReminderPanelOpen: boolean;
 }
 
 /** 仅桌宠本体时的窗口尺寸。 */
@@ -69,6 +76,15 @@ export function computeRequiredPetWindowSize(state: PetWindowLayoutState): { wid
   if (state.isBubbleVisible) {
     width = Math.max(width, SPEECH_BUBBLE_WIDTH + pad * 2);
     height = petStackBase + 12 + SPEECH_BUBBLE_HEIGHT + pad;
+  }
+
+  if (state.hasReminderIndicator) {
+    height = Math.max(height, petStackBase + REMINDER_INDICATOR_HEIGHT + pad);
+  }
+
+  if (state.isReminderPanelOpen) {
+    width = Math.max(width, REMINDER_PANEL_WIDTH + pad * 2);
+    height = Math.max(height, petStackBase + 12 + REMINDER_PANEL_HEIGHT + pad);
   }
 
   if (state.isQuickCommandOpen) {

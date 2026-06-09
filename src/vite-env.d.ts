@@ -13,6 +13,8 @@ interface PetDesktopApi {
   setWindowSizeKeepBottomRight: (width: number, height: number) => Promise<void>;
   checkCodexInstallations: () => Promise<CodexInstallationCheck>;
   listLocalSkills: () => Promise<LocalSkill[]>;
+  listImportedPetSkins: () => Promise<PetSkinOption[]>;
+  importPetSkinFolder: () => Promise<PetSkinOption | null>;
   getPetIdentity: () => Promise<PetIdentity>;
   savePetIdentity: (identity: PetIdentityInput) => Promise<PetIdentity>;
   listModelProviderConfigs: () => Promise<PublicModelProviderConfig[]>;
@@ -21,6 +23,9 @@ interface PetDesktopApi {
   chatWithModelProvider: (input: ModelProviderChatInput) => Promise<{ answer: string }>;
   analyzeImageWithVisionModel: (input: { prompt: string; imageDataUrl: string }) => Promise<string>;
   getReminder: (id: string) => Promise<ReminderTask | null>;
+  listActiveReminders: () => Promise<ReminderTask[]>;
+  updateReminder: (input: ReminderTaskUpdateInput) => Promise<ReminderTask | null>;
+  cancelReminder: (id: string) => Promise<ReminderTask | null>;
   completeReminder: (id: string) => Promise<ReminderTask | null>;
   snoozeReminder: (id: string, hours: number, minutes: number) => Promise<ReminderTask | null>;
   closeReminder: (id: string) => Promise<void>;
@@ -49,6 +54,7 @@ type CodexCliEvent =
   | { type: 'exit'; code: number | null; signal: string | null }
   | { type: 'cancelled' }
   | { type: 'reminder-created'; id: string; title: string; remindAt: string }
+  | { type: 'reminders-updated' }
   | { type: 'translation-start'; targetLanguage: string }
   | { type: 'translation-result'; text: string; sourceText: string; targetLanguage: string; provider: string }
   | { type: 'translation-error'; message: string };
@@ -56,6 +62,7 @@ type CodexCliEvent =
 type CodexRunTarget = 'codex-cli';
 type CodexRunIntent = 'chat' | 'task';
 type PetGender = 'male' | 'female' | 'other';
+type PetSkinSource = 'built-in' | 'imported';
 type ModelProviderId = 'qwen' | 'deepseek';
 type ModelProviderTestStatus = 'unknown' | 'success' | 'failed';
 type LocalSkillSource = 'codex' | 'project' | 'agents';
@@ -67,6 +74,15 @@ interface LocalSkill {
   entryPath: string;
   enabled: boolean;
   source: LocalSkillSource;
+}
+
+interface PetSkinOption {
+  id: string;
+  displayName: string;
+  description: string;
+  spritesheetUrl: string;
+  source: PetSkinSource;
+  directoryPath?: string;
 }
 
 type ReminderTaskStatus = 'pending' | 'fired' | 'done' | 'cancelled';
@@ -82,6 +98,14 @@ interface ReminderTask {
   createdAt: string;
   updatedAt: string;
   firedAt: string;
+}
+
+interface ReminderTaskUpdateInput {
+  id: string;
+  title: string;
+  remindAt: string;
+  originalText?: string;
+  timezone?: string;
 }
 
 type TranslationTargetLanguage = 'english' | 'chinese' | 'russian' | 'french' | 'japanese' | 'italian';

@@ -5,9 +5,10 @@ import type { PetAnimationState } from './types';
 interface PetRendererProps {
   spritesheetUrl: string;
   state: PetAnimationState;
+  onSpritesheetError?: () => void;
 }
 
-export function PetRenderer({ spritesheetUrl, state }: PetRendererProps) {
+export function PetRenderer({ spritesheetUrl, state, onSpritesheetError }: PetRendererProps) {
   const avatarRef = useRef<HTMLDivElement | null>(null);
   const frames = useMemo(() => buildFrames(state), [state]);
 
@@ -37,6 +38,14 @@ export function PetRenderer({ spritesheetUrl, state }: PetRendererProps) {
       }
     };
   }, [frames]);
+
+  useEffect(() => {
+    const image = new Image();
+    image.onerror = () => {
+      onSpritesheetError?.();
+    };
+    image.src = spritesheetUrl;
+  }, [onSpritesheetError, spritesheetUrl]);
 
   return (
     <div

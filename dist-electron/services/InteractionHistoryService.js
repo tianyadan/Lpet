@@ -486,6 +486,29 @@ export class InteractionHistoryService {
       `)
             .all(nowIso);
     }
+    listActiveReminderTasks() {
+        if (!this.database) {
+            return [];
+        }
+        return this.database
+            .prepare(`
+        SELECT
+          id,
+          title,
+          original_text AS originalText,
+          remind_at AS remindAt,
+          timezone,
+          status,
+          snooze_until AS snoozeUntil,
+          created_at AS createdAt,
+          updated_at AS updatedAt,
+          fired_at AS firedAt
+        FROM reminder_tasks
+        WHERE status IN ('pending', 'fired')
+        ORDER BY remind_at ASC
+      `)
+            .all();
+    }
     markReminderFired(id) {
         if (!this.database) {
             return;
@@ -533,6 +556,46 @@ export class InteractionHistoryService {
         WHERE id = ?
       `)
             .run(remindAt, remindAt, now, id);
+        return this.getReminderTask(id);
+    }
+    updateReminderTask(input) {
+        if (!this.database) {
+            return null;
+        }
+        const currentTask = this.getReminderTask(input.id);
+        if (!currentTask) {
+            return null;
+        }
+        const now = new Date().toISOString();
+        this.database
+            .prepare(`
+        UPDATE reminder_tasks
+        SET title = ?,
+            original_text = ?,
+            remind_at = ?,
+            timezone = ?,
+            status = 'pending',
+            snooze_until = '',
+            fired_at = '',
+            updated_at = ?
+        WHERE id = ?
+      `)
+            .run(input.title.trim(), typeof input.originalText === 'string' ? input.originalText.trim() : currentTask.originalText, input.remindAt, typeof input.timezone === 'string' ? input.timezone.trim() : currentTask.timezone, now, input.id);
+        return this.getReminderTask(input.id);
+    }
+    cancelReminderTask(id) {
+        if (!this.database) {
+            return null;
+        }
+        const now = new Date().toISOString();
+        this.database
+            .prepare(`
+        UPDATE reminder_tasks
+        SET status = 'cancelled',
+            updated_at = ?
+        WHERE id = ?
+      `)
+            .run(now, id);
         return this.getReminderTask(id);
     }
     getTranslationConfig() {
