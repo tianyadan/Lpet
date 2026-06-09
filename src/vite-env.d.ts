@@ -31,6 +31,10 @@ interface PetDesktopApi {
   closeReminder: (id: string) => Promise<void>;
   getTranslationConfig: () => Promise<TranslationConfig>;
   saveTranslationConfig: (config: TranslationConfigInput) => Promise<TranslationConfig>;
+  getGitActivityConfig: () => Promise<GitActivityConfig>;
+  saveGitActivityConfig: (config: GitActivityConfigInput) => Promise<GitActivityConfig>;
+  getGitActivityStatus: () => Promise<GitActivityStatus>;
+  installGitActivity: () => Promise<GitActivityStatus>;
   runCodex: (
     prompt: string,
     target: CodexRunTarget,
@@ -57,7 +61,8 @@ type CodexCliEvent =
   | { type: 'reminders-updated' }
   | { type: 'translation-start'; targetLanguage: string }
   | { type: 'translation-result'; text: string; sourceText: string; targetLanguage: string; provider: string }
-  | { type: 'translation-error'; message: string };
+  | { type: 'translation-error'; message: string }
+  | { type: 'git-activity'; eventType: GitActivityEventType; text: string };
 
 type CodexRunTarget = 'codex-cli';
 type CodexRunIntent = 'chat' | 'task';
@@ -119,6 +124,57 @@ interface TranslationConfig {
 interface TranslationConfigInput {
   targetLanguage: TranslationTargetLanguage;
   shortcut: string;
+}
+
+type GitActivityEventType = 'commit' | 'push';
+
+interface GitActivityConfig {
+  enabled: boolean;
+  translateCommit: boolean;
+  summaryTime: string;
+  updatedAt: string;
+}
+
+interface GitActivityConfigInput {
+  enabled?: boolean;
+  translateCommit?: boolean;
+  summaryTime?: string;
+}
+
+interface GitActivityEvent {
+  id: string;
+  eventType: GitActivityEventType;
+  repoPath: string;
+  branch: string;
+  remote: string;
+  commitHash: string;
+  commitMessage: string;
+  translatedMessage: string;
+  createdAt: string;
+  notifiedAt: string;
+}
+
+interface GitActivityStats {
+  date: string;
+  commitCount: number;
+  pushCount: number;
+  repoCount: number;
+}
+
+interface GitActivityStatus {
+  wrapperInstalled: boolean;
+  zshrcConfigured: boolean;
+  currentShellConfigured: boolean;
+  wrapperPath: string;
+  recorderPath: string;
+  realGitPath: string | null;
+  nodePath: string | null;
+  databasePath: string;
+  pathLine: string;
+  config: GitActivityConfig;
+  todayStats: GitActivityStats;
+  yesterdayStats: GitActivityStats;
+  recentEvents: GitActivityEvent[];
 }
 
 interface PetIdentity {

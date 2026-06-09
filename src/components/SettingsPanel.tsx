@@ -18,7 +18,7 @@ interface SettingsPanelProps {
 }
 
 type CliProviderId = 'codex' | 'cursor' | 'claude-code';
-type SettingsMenuKey = 'cli' | 'identity' | 'skin' | 'skills' | 'model-provider' | 'translation';
+type SettingsMenuKey = 'cli' | 'identity' | 'skin' | 'skills' | 'model-provider' | 'translation' | 'dev-companion';
 
 interface CliProviderConfig {
   id: CliProviderId;
@@ -99,6 +99,27 @@ const emptyTranslationConfig: TranslationConfig = {
   shortcut: 'Control+Shift+T',
   updatedAt: '',
 };
+const emptyGitActivityConfig: GitActivityConfig = {
+  enabled: false,
+  translateCommit: false,
+  summaryTime: '20:00',
+  updatedAt: '',
+};
+const emptyGitActivityStatus: GitActivityStatus = {
+  wrapperInstalled: false,
+  zshrcConfigured: false,
+  currentShellConfigured: false,
+  wrapperPath: '',
+  recorderPath: '',
+  realGitPath: null,
+  nodePath: null,
+  databasePath: '',
+  pathLine: 'export PATH="$HOME/.lpet/bin:$PATH"',
+  config: emptyGitActivityConfig,
+  todayStats: { date: '', commitCount: 0, pushCount: 0, repoCount: 0 },
+  yesterdayStats: { date: '', commitCount: 0, pushCount: 0, repoCount: 0 },
+  recentEvents: [],
+};
 
 function createEmptyModelProviderConfig(provider: ModelProviderId): PublicModelProviderConfig {
   return {
@@ -124,6 +145,17 @@ function createEmptyModelProviderConfigs(): Record<ModelProviderId, PublicModelP
   return {
     qwen: createEmptyModelProviderConfig('qwen'),
     deepseek: createEmptyModelProviderConfig('deepseek'),
+  };
+}
+
+function normalizeGitActivityStatus(status: Partial<GitActivityStatus> | null | undefined): GitActivityStatus {
+  return {
+    ...emptyGitActivityStatus,
+    ...status,
+    config: status?.config ?? emptyGitActivityConfig,
+    todayStats: status?.todayStats ?? emptyGitActivityStatus.todayStats,
+    yesterdayStats: status?.yesterdayStats ?? emptyGitActivityStatus.yesterdayStats,
+    recentEvents: Array.isArray(status?.recentEvents) ? status.recentEvents : [],
   };
 }
 
@@ -668,6 +700,138 @@ function TranslationPanel({
   );
 }
 
+function DevelopmentCompanionPanel({
+  config,
+  status,
+  isSaving,
+  isInstalling,
+  message,
+  onChange,
+  onSave,
+  onInstall,
+  onRefresh,
+}: {
+  config: GitActivityConfig;
+  status: GitActivityStatus;
+  isSaving: boolean;
+  isInstalling: boolean;
+  message: string;
+  onChange: (config: GitActivityConfig) => void;
+  onSave: () => void;
+  onInstall: () => void;
+  onRefresh: () => void;
+}) {
+  const ready = status.wrapperInstalled && status.zshrcConfigured;
+  const comparisonText =
+    status.todayStats.pushCount > status.yesterdayStats.pushCount
+      ? '今天 push 比昨天多，推进力度更强。'
+      : status.todayStats.pushCount === status.yesterdayStats.pushCount
+        ? '今天 push 和昨天持平。'
+        : '今天 push 少于昨天，晚上会提醒你关注节奏。';
+
+  return (
+    <section className="settings-dev-companion" aria-label="开发陪伴">
+      <div className="settings-section-header">
+        <div>
+          <div className="settings-section-title">开发陪伴</div>
+          <p>全局拦截终端里的 git commit / git push，记录到本地 SQLite，并让桌宠用气泡反馈今天的开发节奏。</p>
+        </div>
+      </div>
+
+      <div className="settings-installation-meta settings-installation-meta-detail">
+        <span className={ready ? 'settings-status-label settings-status-label-installed' : 'settings-status-label'}>
+          {ready ? '已接入' : '未接入'}
+        </span>
+        <span className="settings-installation-source">
+          点击“一键安装并写入”会创建 {status.wrapperPath || '~/.lpet/bin/git'}，并向 ~/.zshrc 写入 PATH。
+        </span>
+        <span className="settings-installation-source">新开的终端自动生效；当前已打开的终端需要执行 source ~/.zshrc 或重新打开。</span>
+      </div>
+
+      <div className="settings-form-grid settings-model-form-grid">
+        <label className="settings-toggle-row settings-toggle-row-block">
+          <input
+            type="checkbox"
+            checked={config.enabled}
+            onChange={(event) => onChange({ ...config, enabled: event.target.checked })}
+          />
+          <span>启用 Git 全局统计</span>
+        </label>
+        <label className="settings-toggle-row settings-toggle-row-block">
+          <input
+            type="checkbox"
+            checked={config.translateCommit}
+            onChange={(event) => onChange({ ...config, translateCommit: event.target.checked })}
+          />
+          <span>Commit 信息转中文（后续接入模型后会消耗 Token）</span>
+        </label>
+        <label className="settings-field">
+          <span>每日总结时间</span>
+          <input
+            type="time"
+            value={config.summaryTime}
+            onChange={(event) => onChange({ ...config, summaryTime: event.target.value || '20:00' })}
+          />
+        </label>
+      </div>
+
+      <div className="settings-dev-stats">
+        <div>
+          <strong>{status.todayStats.commitCount}</strong>
+          <span>今日 commit</span>
+        </div>
+        <div>
+          <strong>{status.todayStats.pushCount}</strong>
+          <span>今日 push</span>
+        </div>
+        <div>
+          <strong>{status.todayStats.repoCount}</strong>
+          <span>涉及仓库</span>
+        </div>
+      </div>
+      <div className="settings-check-time">{comparisonText}</div>
+
+      <div className="settings-diagnostics settings-dev-diagnostics">
+        <span>Wrapper：{status.wrapperInstalled ? '已安装' : '未安装'} · {status.wrapperPath || '未知'}</span>
+        <span>Shell PATH：{status.zshrcConfigured ? '已写入 ~/.zshrc' : '未写入 ~/.zshrc'}</span>
+        <span>当前进程 PATH：{status.currentShellConfigured ? '已包含 ~/.lpet/bin' : '未包含 ~/.lpet/bin'}</span>
+        <span>真实 Git：{status.realGitPath ?? '未检测到'}</span>
+        <span>Node：{status.nodePath ?? '未检测到'}</span>
+        <span>SQLite：{status.databasePath || '未知'}</span>
+      </div>
+
+      {status.recentEvents.length > 0 && (
+        <div className="settings-dev-events">
+          {status.recentEvents.slice(0, 4).map((event) => (
+            <div key={event.id}>
+              <span>{event.eventType}</span>
+              <strong>{event.commitMessage || event.remote || '已记录'}</strong>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {message && (
+        <div className={message.includes('成功') || message.includes('保存') ? 'settings-success' : 'settings-error'}>
+          {message}
+        </div>
+      )}
+
+      <div className="settings-section-actions settings-model-actions">
+        <button type="button" className="settings-secondary-button" disabled={isInstalling} onClick={onRefresh}>
+          刷新状态
+        </button>
+        <button type="button" className="settings-secondary-button" disabled={isSaving} onClick={onSave}>
+          {isSaving ? '保存中' : '保存配置'}
+        </button>
+        <button type="button" className="settings-refresh-button settings-save-button" disabled={isInstalling} onClick={onInstall}>
+          {isInstalling ? '安装中' : '一键安装并写入'}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function SkinPanel({
   skins,
   selectedSkinId,
@@ -835,6 +999,11 @@ export function SettingsPanel({
   const [translationDraft, setTranslationDraft] = useState<TranslationConfigInput>(emptyTranslationConfig);
   const [isTranslationSaving, setIsTranslationSaving] = useState(false);
   const [translationMessage, setTranslationMessage] = useState('');
+  const [gitActivityConfig, setGitActivityConfig] = useState<GitActivityConfig>(emptyGitActivityConfig);
+  const [gitActivityStatus, setGitActivityStatus] = useState<GitActivityStatus>(emptyGitActivityStatus);
+  const [isGitActivitySaving, setIsGitActivitySaving] = useState(false);
+  const [isGitActivityInstalling, setIsGitActivityInstalling] = useState(false);
+  const [gitActivityMessage, setGitActivityMessage] = useState('');
   const [isSkinImporting, setIsSkinImporting] = useState(false);
   const [skinMessage, setSkinMessage] = useState('');
   const [selectedSettingsSkillId, setSelectedSettingsSkillId] = useState<string | null>(null);
@@ -921,6 +1090,23 @@ export function SettingsPanel({
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setTranslationMessage(message);
+    }
+  }
+
+  async function refreshGitActivityStatus() {
+    try {
+      if (!window.petDesktop) {
+        setGitActivityMessage('Electron preload 未加载，无法读取开发陪伴配置。请重启桌宠进程。');
+        return;
+      }
+
+      const nextStatus = await window.petDesktop.getGitActivityStatus();
+      const normalizedStatus = normalizeGitActivityStatus(nextStatus);
+      setGitActivityStatus(normalizedStatus);
+      setGitActivityConfig(normalizedStatus.config);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setGitActivityMessage(message);
     }
   }
 
@@ -1035,6 +1221,55 @@ export function SettingsPanel({
     }
   }
 
+  async function saveGitActivityConfig() {
+    setIsGitActivitySaving(true);
+    setGitActivityMessage('');
+
+    try {
+      if (!window.petDesktop) {
+        setGitActivityMessage('Electron preload 未加载，无法保存开发陪伴配置。请重启桌宠进程。');
+        return;
+      }
+
+      const savedConfig = await window.petDesktop.saveGitActivityConfig({
+        enabled: gitActivityConfig.enabled,
+        translateCommit: gitActivityConfig.translateCommit,
+        summaryTime: gitActivityConfig.summaryTime,
+      });
+      setGitActivityConfig(savedConfig);
+      setGitActivityMessage('开发陪伴配置已保存。');
+      void refreshGitActivityStatus();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setGitActivityMessage(message);
+    } finally {
+      setIsGitActivitySaving(false);
+    }
+  }
+
+  async function installGitActivity() {
+    setIsGitActivityInstalling(true);
+    setGitActivityMessage('');
+
+    try {
+      if (!window.petDesktop) {
+        setGitActivityMessage('Electron preload 未加载，无法安装 Git 统计入口。请重启桌宠进程。');
+        return;
+      }
+
+      const nextStatus = await window.petDesktop.installGitActivity();
+      const normalizedStatus = normalizeGitActivityStatus(nextStatus);
+      setGitActivityStatus(normalizedStatus);
+      setGitActivityConfig(normalizedStatus.config);
+      setGitActivityMessage('安装成功。请重新打开终端，之后 git commit / git push 会自动记录。');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setGitActivityMessage(message);
+    } finally {
+      setIsGitActivityInstalling(false);
+    }
+  }
+
   async function importPetSkin() {
     setIsSkinImporting(true);
     setSkinMessage('');
@@ -1060,6 +1295,7 @@ export function SettingsPanel({
       setIdentityErrorMessage('');
       setModelProviderMessage('');
       setTranslationMessage('');
+      setGitActivityMessage('');
       setSkinMessage('');
       setSelectedSettingsSkillId(null);
       setIsIdentityEditing(false);
@@ -1067,6 +1303,7 @@ export function SettingsPanel({
       void refreshPetIdentity();
       void refreshModelProviderConfigs();
       void refreshTranslationConfig();
+      void refreshGitActivityStatus();
     }
   }, [isOpen]);
 
@@ -1158,6 +1395,19 @@ export function SettingsPanel({
             }}
           >
             翻译
+          </button>
+          <button
+            type="button"
+            className={activeMenu === 'dev-companion' ? 'settings-sidebar-item settings-sidebar-item-active' : 'settings-sidebar-item'}
+            onClick={() => {
+              setActiveMenu('dev-companion');
+              setSelectedProviderId(null);
+              setSelectedModelProviderId(null);
+              setGitActivityMessage('');
+              void refreshGitActivityStatus();
+            }}
+          >
+            开发陪伴
           </button>
         </nav>
 
@@ -1289,6 +1539,20 @@ export function SettingsPanel({
               hasCodexCli={status.cli.installed}
               onChange={setTranslationDraft}
               onSave={saveTranslationConfig}
+            />
+          )}
+
+          {activeMenu === 'dev-companion' && (
+            <DevelopmentCompanionPanel
+              config={gitActivityConfig}
+              status={gitActivityStatus}
+              isSaving={isGitActivitySaving}
+              isInstalling={isGitActivityInstalling}
+              message={gitActivityMessage}
+              onChange={setGitActivityConfig}
+              onSave={saveGitActivityConfig}
+              onInstall={installGitActivity}
+              onRefresh={refreshGitActivityStatus}
             />
           )}
         </div>

@@ -33,6 +33,10 @@ contextBridge.exposeInMainWorld('petDesktop', {
   closeReminder: (id: string) => ipcRenderer.invoke('reminders:close', id),
   getTranslationConfig: () => ipcRenderer.invoke('translation:get-config'),
   saveTranslationConfig: (config: unknown) => ipcRenderer.invoke('translation:save-config', config),
+  getGitActivityConfig: () => ipcRenderer.invoke('git-activity:get-config'),
+  saveGitActivityConfig: (config: unknown) => ipcRenderer.invoke('git-activity:save-config', config),
+  getGitActivityStatus: () => ipcRenderer.invoke('git-activity:get-status'),
+  installGitActivity: () => ipcRenderer.invoke('git-activity:install'),
   runCodex: (prompt: string, target: string, sessionId?: string | null, intent?: string, elevated?: boolean) =>
     ipcRenderer.invoke('codex:run', prompt, target, sessionId, intent, elevated),
   cancelCodex: () => ipcRenderer.invoke('codex:cancel'),

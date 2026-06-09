@@ -32,6 +32,10 @@ electron_1.contextBridge.exposeInMainWorld('petDesktop', {
     closeReminder: (id) => electron_1.ipcRenderer.invoke('reminders:close', id),
     getTranslationConfig: () => electron_1.ipcRenderer.invoke('translation:get-config'),
     saveTranslationConfig: (config) => electron_1.ipcRenderer.invoke('translation:save-config', config),
+    getGitActivityConfig: () => electron_1.ipcRenderer.invoke('git-activity:get-config'),
+    saveGitActivityConfig: (config) => electron_1.ipcRenderer.invoke('git-activity:save-config', config),
+    getGitActivityStatus: () => electron_1.ipcRenderer.invoke('git-activity:get-status'),
+    installGitActivity: () => electron_1.ipcRenderer.invoke('git-activity:install'),
     runCodex: (prompt, target, sessionId, intent, elevated) => electron_1.ipcRenderer.invoke('codex:run', prompt, target, sessionId, intent, elevated),
     cancelCodex: () => electron_1.ipcRenderer.invoke('codex:cancel'),
     onCodexEvent: (callback) => {

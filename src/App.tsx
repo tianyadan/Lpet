@@ -644,6 +644,17 @@ export function App() {
         return;
       }
 
+      if (event.type === 'git-activity') {
+        clearTaskVisualReset();
+        setIsQuickRunning(false);
+        setIsBubbleVisible(true);
+        setStateValue('review');
+        setTaskSteps(createIdleSteps());
+        setBubbleText(event.text);
+        scheduleTaskVisualReset(22000);
+        return;
+      }
+
       if (event.type === 'reminder-created') {
         const remindAt = new Date(event.remindAt);
         const formattedTime = Number.isNaN(remindAt.getTime())

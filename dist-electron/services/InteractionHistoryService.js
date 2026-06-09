@@ -8,6 +8,12 @@ const defaultTranslationConfig = {
     shortcut: 'Control+Shift+T',
     updatedAt: '',
 };
+const defaultGitActivityConfig = {
+    enabled: false,
+    translateCommit: false,
+    summaryTime: '20:00',
+    updatedAt: '',
+};
 const defaultPetIdentity = {
     name: '',
     owner: '',
@@ -140,6 +146,33 @@ export class InteractionHistoryService {
         shortcut TEXT NOT NULL DEFAULT 'Control+Shift+T',
         updated_at TEXT NOT NULL DEFAULT ''
       );
+
+      CREATE TABLE IF NOT EXISTS git_activity_config (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        enabled INTEGER NOT NULL DEFAULT 0,
+        translate_commit INTEGER NOT NULL DEFAULT 0,
+        summary_time TEXT NOT NULL DEFAULT '20:00',
+        updated_at TEXT NOT NULL DEFAULT ''
+      );
+
+      CREATE TABLE IF NOT EXISTS git_activity_events (
+        id TEXT PRIMARY KEY,
+        event_type TEXT NOT NULL,
+        repo_path TEXT NOT NULL,
+        branch TEXT NOT NULL DEFAULT '',
+        remote TEXT NOT NULL DEFAULT '',
+        commit_hash TEXT NOT NULL DEFAULT '',
+        commit_message TEXT NOT NULL DEFAULT '',
+        translated_message TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        notified_at TEXT NOT NULL DEFAULT ''
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_git_activity_events_created_at
+        ON git_activity_events(created_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_git_activity_events_notified
+        ON git_activity_events(notified_at, created_at);
     `);
         this.migrateModelProviderSchema();
     }
@@ -664,5 +697,145 @@ export class InteractionHistoryService {
       `)
             .run(nextConfig.targetLanguage, nextConfig.shortcut, nextConfig.updatedAt);
         return nextConfig;
+    }
+    getGitActivityConfig() {
+        if (!this.database) {
+            return defaultGitActivityConfig;
+        }
+        const record = this.database
+            .prepare(`
+        SELECT
+          enabled,
+          translate_commit AS translateCommit,
+          summary_time AS summaryTime,
+          updated_at AS updatedAt
+        FROM git_activity_config
+        WHERE id = 1
+      `)
+            .get();
+        if (!record) {
+            return defaultGitActivityConfig;
+        }
+        return {
+            enabled: record.enabled === 1,
+            translateCommit: record.translateCommit === 1,
+            summaryTime: typeof record.summaryTime === 'string' && record.summaryTime ? record.summaryTime : '20:00',
+            updatedAt: typeof record.updatedAt === 'string' ? record.updatedAt : '',
+        };
+    }
+    saveGitActivityConfig(input) {
+        const currentConfig = this.getGitActivityConfig();
+        const nextConfig = {
+            enabled: typeof input.enabled === 'boolean' ? input.enabled : currentConfig.enabled,
+            translateCommit: typeof input.translateCommit === 'boolean' ? input.translateCommit : currentConfig.translateCommit,
+            summaryTime: typeof input.summaryTime === 'string' && /^\d{2}:\d{2}$/.test(input.summaryTime) ? input.summaryTime : currentConfig.summaryTime,
+            updatedAt: new Date().toISOString(),
+        };
+        if (!this.database) {
+            return nextConfig;
+        }
+        this.database
+            .prepare(`
+        INSERT INTO git_activity_config (
+          id,
+          enabled,
+          translate_commit,
+          summary_time,
+          updated_at
+        )
+        VALUES (1, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          enabled = excluded.enabled,
+          translate_commit = excluded.translate_commit,
+          summary_time = excluded.summary_time,
+          updated_at = excluded.updated_at
+      `)
+            .run(nextConfig.enabled ? 1 : 0, nextConfig.translateCommit ? 1 : 0, nextConfig.summaryTime, nextConfig.updatedAt);
+        return nextConfig;
+    }
+    listRecentGitActivityEvents(limit) {
+        if (!this.database) {
+            return [];
+        }
+        return this.database
+            .prepare(`
+        SELECT
+          id,
+          event_type AS eventType,
+          repo_path AS repoPath,
+          branch,
+          remote,
+          commit_hash AS commitHash,
+          commit_message AS commitMessage,
+          translated_message AS translatedMessage,
+          created_at AS createdAt,
+          notified_at AS notifiedAt
+        FROM git_activity_events
+        ORDER BY created_at DESC
+        LIMIT ?
+      `)
+            .all(limit);
+    }
+    listUnnotifiedGitActivityEvents(limit) {
+        if (!this.database) {
+            return [];
+        }
+        return this.database
+            .prepare(`
+        SELECT
+          id,
+          event_type AS eventType,
+          repo_path AS repoPath,
+          branch,
+          remote,
+          commit_hash AS commitHash,
+          commit_message AS commitMessage,
+          translated_message AS translatedMessage,
+          created_at AS createdAt,
+          notified_at AS notifiedAt
+        FROM git_activity_events
+        WHERE notified_at = ''
+        ORDER BY created_at ASC
+        LIMIT ?
+      `)
+            .all(limit);
+    }
+    markGitActivityEventsNotified(ids) {
+        if (!this.database || ids.length === 0) {
+            return;
+        }
+        const now = new Date().toISOString();
+        const statement = this.database.prepare(`
+      UPDATE git_activity_events
+      SET notified_at = ?
+      WHERE id = ?
+    `);
+        for (const id of ids) {
+            statement.run(now, id);
+        }
+    }
+    getGitActivityStatsForDate(date) {
+        if (!this.database) {
+            return { date, commitCount: 0, pushCount: 0, repoCount: 0 };
+        }
+        const start = `${date}T00:00:00.000`;
+        const end = `${date}T23:59:59.999`;
+        const record = this.database
+            .prepare(`
+        SELECT
+          SUM(CASE WHEN event_type = 'commit' THEN 1 ELSE 0 END) AS commitCount,
+          SUM(CASE WHEN event_type = 'push' THEN 1 ELSE 0 END) AS pushCount,
+          COUNT(DISTINCT repo_path) AS repoCount
+        FROM git_activity_events
+        WHERE datetime(created_at) >= datetime(?)
+          AND datetime(created_at) <= datetime(?)
+      `)
+            .get(start, end);
+        return {
+            date,
+            commitCount: record?.commitCount ?? 0,
+            pushCount: record?.pushCount ?? 0,
+            repoCount: record?.repoCount ?? 0,
+        };
     }
 }
