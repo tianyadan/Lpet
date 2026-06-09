@@ -164,6 +164,9 @@ interface GitActivityStats {
 interface GitActivityStatus {
   wrapperInstalled: boolean;
   zshrcConfigured: boolean;
+  zprofileConfigured: boolean;
+  bashrcConfigured: boolean;
+  bashProfileConfigured: boolean;
   currentShellConfigured: boolean;
   wrapperPath: string;
   recorderPath: string;
@@ -171,6 +174,7 @@ interface GitActivityStatus {
   nodePath: string | null;
   databasePath: string;
   pathLine: string;
+  pathBlock: string;
   config: GitActivityConfig;
   todayStats: GitActivityStats;
   yesterdayStats: GitActivityStats;

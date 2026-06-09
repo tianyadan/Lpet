@@ -108,6 +108,9 @@ const emptyGitActivityConfig: GitActivityConfig = {
 const emptyGitActivityStatus: GitActivityStatus = {
   wrapperInstalled: false,
   zshrcConfigured: false,
+  zprofileConfigured: false,
+  bashrcConfigured: false,
+  bashProfileConfigured: false,
   currentShellConfigured: false,
   wrapperPath: '',
   recorderPath: '',
@@ -115,6 +118,7 @@ const emptyGitActivityStatus: GitActivityStatus = {
   nodePath: null,
   databasePath: '',
   pathLine: 'export PATH="$HOME/.lpet/bin:$PATH"',
+  pathBlock: '',
   config: emptyGitActivityConfig,
   todayStats: { date: '', commitCount: 0, pushCount: 0, repoCount: 0 },
   yesterdayStats: { date: '', commitCount: 0, pushCount: 0, repoCount: 0 },
@@ -721,7 +725,9 @@ function DevelopmentCompanionPanel({
   onInstall: () => void;
   onRefresh: () => void;
 }) {
-  const ready = status.wrapperInstalled && status.zshrcConfigured;
+  const hasShellProfileConfigured =
+    status.zshrcConfigured || status.zprofileConfigured || status.bashrcConfigured || status.bashProfileConfigured;
+  const ready = status.wrapperInstalled && hasShellProfileConfigured;
   const comparisonText =
     status.todayStats.pushCount > status.yesterdayStats.pushCount
       ? '今天 push 比昨天多，推进力度更强。'
@@ -743,9 +749,9 @@ function DevelopmentCompanionPanel({
           {ready ? '已接入' : '未接入'}
         </span>
         <span className="settings-installation-source">
-          点击“一键安装并写入”会创建 {status.wrapperPath || '~/.lpet/bin/git'}，并向 ~/.zshrc 写入 PATH。
+          点击“一键安装并写入”会创建 {status.wrapperPath || '~/.lpet/bin/git'}，并向常用 shell 配置写入 PATH。
         </span>
-        <span className="settings-installation-source">新开的终端自动生效；当前已打开的终端需要执行 source ~/.zshrc 或重新打开。</span>
+        <span className="settings-installation-source">Cursor 里已打开的终端不会自动刷新 PATH，请关闭当前终端标签后重新打开。</span>
       </div>
 
       <div className="settings-form-grid settings-model-form-grid">
@@ -793,7 +799,9 @@ function DevelopmentCompanionPanel({
 
       <div className="settings-diagnostics settings-dev-diagnostics">
         <span>Wrapper：{status.wrapperInstalled ? '已安装' : '未安装'} · {status.wrapperPath || '未知'}</span>
-        <span>Shell PATH：{status.zshrcConfigured ? '已写入 ~/.zshrc' : '未写入 ~/.zshrc'}</span>
+        <span>Shell PATH：{hasShellProfileConfigured ? '已写入 shell profile' : '未写入 shell profile'}</span>
+        <span>.zshrc：{status.zshrcConfigured ? '已写入' : '未写入'} · .zprofile：{status.zprofileConfigured ? '已写入' : '未写入'}</span>
+        <span>.bashrc：{status.bashrcConfigured ? '已写入' : '未写入'} · .bash_profile：{status.bashProfileConfigured ? '已写入' : '未写入'}</span>
         <span>当前进程 PATH：{status.currentShellConfigured ? '已包含 ~/.lpet/bin' : '未包含 ~/.lpet/bin'}</span>
         <span>真实 Git：{status.realGitPath ?? '未检测到'}</span>
         <span>Node：{status.nodePath ?? '未检测到'}</span>

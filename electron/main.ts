@@ -766,12 +766,22 @@ function getGitActivityInstallStatus() {
   const wrapperPath = path.join(binDir, 'git');
   const recorderPath = path.join(lpetHome, 'scripts', 'record-git-activity.cjs');
   const zshrcPath = path.join(os.homedir(), '.zshrc');
+  const zprofilePath = path.join(os.homedir(), '.zprofile');
+  const bashrcPath = path.join(os.homedir(), '.bashrc');
+  const bashProfilePath = path.join(os.homedir(), '.bash_profile');
   const pathLine = 'export PATH="$HOME/.lpet/bin:$PATH"';
+  const pathBlock = buildGitActivityPathBlock();
   const zshrcContent = fs.existsSync(zshrcPath) ? fs.readFileSync(zshrcPath, 'utf8') : '';
+  const zprofileContent = fs.existsSync(zprofilePath) ? fs.readFileSync(zprofilePath, 'utf8') : '';
+  const bashrcContent = fs.existsSync(bashrcPath) ? fs.readFileSync(bashrcPath, 'utf8') : '';
+  const bashProfileContent = fs.existsSync(bashProfilePath) ? fs.readFileSync(bashProfilePath, 'utf8') : '';
   const currentPathEntries = (process.env.PATH ?? '').split(path.delimiter).map((entry) => path.resolve(entry || '.'));
   return {
     wrapperInstalled: isExecutableFile(wrapperPath),
-    zshrcConfigured: zshrcContent.includes(pathLine),
+    zshrcConfigured: zshrcContent.includes(pathLine) || zshrcContent.includes('LPET_GIT_ACTIVITY_PATH'),
+    zprofileConfigured: zprofileContent.includes(pathLine) || zprofileContent.includes('LPET_GIT_ACTIVITY_PATH'),
+    bashrcConfigured: bashrcContent.includes(pathLine) || bashrcContent.includes('LPET_GIT_ACTIVITY_PATH'),
+    bashProfileConfigured: bashProfileContent.includes(pathLine) || bashProfileContent.includes('LPET_GIT_ACTIVITY_PATH'),
     currentShellConfigured: currentPathEntries.includes(path.resolve(binDir)),
     wrapperPath,
     recorderPath,
@@ -779,6 +789,7 @@ function getGitActivityInstallStatus() {
     nodePath: resolveNodePath(),
     databasePath: getGitActivityDatabasePath(),
     pathLine,
+    pathBlock,
   };
 }
 
@@ -804,20 +815,37 @@ function installGitActivityWrapper() {
   return getGitActivityInstallStatus();
 }
 
-function writeGitActivityPathToZshrc() {
-  const zshrcPath = path.join(os.homedir(), '.zshrc');
-  const pathLine = 'export PATH="$HOME/.lpet/bin:$PATH"';
-  const currentContent = fs.existsSync(zshrcPath) ? fs.readFileSync(zshrcPath, 'utf8') : '';
-  if (!currentContent.includes(pathLine)) {
-    const nextContent = `${currentContent.trimEnd()}\n\n# Lpet Git activity tracking\n${pathLine}\n`;
-    fs.writeFileSync(zshrcPath, nextContent);
+function buildGitActivityPathBlock(): string {
+  return [
+    '# Lpet Git activity tracking',
+    'export LPET_GIT_ACTIVITY_PATH="$HOME/.lpet/bin"',
+    'case ":$PATH:" in',
+    '  *":$LPET_GIT_ACTIVITY_PATH:"*) ;;',
+    '  *) export PATH="$LPET_GIT_ACTIVITY_PATH:$PATH" ;;',
+    'esac',
+  ].join('\n');
+}
+
+function writeGitActivityPathToProfile(profilePath: string): void {
+  const pathBlock = buildGitActivityPathBlock();
+  const currentContent = fs.existsSync(profilePath) ? fs.readFileSync(profilePath, 'utf8') : '';
+  if (!currentContent.includes('LPET_GIT_ACTIVITY_PATH')) {
+    const nextContent = `${currentContent.trimEnd()}\n\n${pathBlock}\n`;
+    fs.writeFileSync(profilePath, nextContent);
+  }
+}
+
+function writeGitActivityPathToShellProfiles() {
+  // WHY：Cursor、macOS Terminal 和 VS Code 对 login/interactive shell 的启动方式不同，只写 .zshrc 容易漏掉。
+  for (const profileName of ['.zshrc', '.zprofile', '.bashrc', '.bash_profile']) {
+    writeGitActivityPathToProfile(path.join(os.homedir(), profileName));
   }
   return getGitActivityInstallStatus();
 }
 
 function installGitActivityAndConfigureShell() {
   installGitActivityWrapper();
-  writeGitActivityPathToZshrc();
+  writeGitActivityPathToShellProfiles();
   historyService.saveGitActivityConfig({ enabled: true });
   return getGitActivityStatus();
 }
