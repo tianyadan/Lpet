@@ -11,6 +11,7 @@ import { importPetSkinFromFolder, listImportedPetSkins } from './services/PetSki
 import { listLocalSkills } from './services/SkillService.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+app.setName('Lpet');
 let petWindow = null;
 let codexWindow = null;
 const reminderWindows = new Map();
@@ -1000,7 +1001,7 @@ function runCodexPrompt(prompt, target, sessionId, intent = 'task', elevated = f
 function createTray() {
     const icon = nativeImage.createEmpty();
     tray = new Tray(icon);
-    tray.setToolTip('Codex Pet Clone');
+    tray.setToolTip('Lpet');
     tray.setContextMenu(Menu.buildFromTemplate([
         {
             label: '显示宠物',

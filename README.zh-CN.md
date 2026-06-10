@@ -15,6 +15,7 @@ Lpet 的定位是一个人格化桌面 Agent 入口。
 - **Agent 运行时**：Codex CLI 负责本地任务执行，模型供应商负责快速问答和翻译。
 - **Skills**：通过本地 Skills 扩展定时提醒、日报等工作流。
 - **Memory**：使用本地 SQLite 存储交互历史和宠物身份信息。
+- **开发者陪伴**：可选监听本地 Git commit / push，记录编码推进节奏，并让桌宠对开发进展给出反馈。
 - **Settings**：统一配置 CLI、模型供应商、宠物身份和翻译快捷键。
 
 ## 产品展示
@@ -46,6 +47,7 @@ Lpet 的定位是一个人格化桌面 Agent 入口。
 - 内置 `scheduled-reminder` 定时提醒 Skill，基于 SQLite 轮询触发。
 - 支持宠物身份配置：名字、主人、年龄、性别、爱好和简介。
 - 本地保存交互记忆。
+- 开发者陪伴模式：记录本地 Git commit / push 次数，把每日开发进展写入 SQLite，并通过桌宠气泡给予鼓励反馈。
 - 支持快捷翻译和目标语言配置。
 - 配置多模态模型后支持图片上传问答。
 - 执行任务时支持步骤状态灯。
@@ -130,7 +132,7 @@ npm run dev
 
 让 AI Agent 或贡献者修改项目前，建议先阅读：
 
-- [AGENTS.md](AGENTS.md)
+- [dev-rules.md](dev-rules.md)
 - [docs/DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md)
 
 核心约束：

@@ -1,4 +1,4 @@
-# Codex Pet Clone 开发约束
+# Lpet 开发约束
 
 本项目是 Electron + React + TypeScript + Vite 桌面宠物应用。任何 AI 或开发者修改本目录下代码前，必须先阅读本文件和 `docs/DEVELOPMENT_GUIDE.md`。
 

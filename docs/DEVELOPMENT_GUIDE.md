@@ -1,4 +1,4 @@
-# Codex Pet Clone 开发手册
+# Lpet 开发手册
 
 ## 1. 项目定位
 

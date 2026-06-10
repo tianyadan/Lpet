@@ -1,5 +1,6 @@
 {
-  "name": "codex-pet-clone",
+  "name": "lpet",
+  "productName": "Lpet",
   "version": "0.1.0",
   "private": true,
   "type": "module",

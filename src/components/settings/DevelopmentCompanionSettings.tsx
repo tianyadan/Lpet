@@ -34,7 +34,7 @@ export function DevelopmentCompanionPanel({
       <div className="settings-section-header">
         <div>
           <div className="settings-section-title">开发陪伴</div>
-          <p>全局拦截终端里的 git commit / git push，记录到本地 SQLite，并让桌宠用气泡反馈今天的开发节奏。</p>
+          <p>记录本地 commit 与 push 记录，用心陪伴开发者每一天</p>
         </div>
       </div>
 
@@ -43,7 +43,6 @@ export function DevelopmentCompanionPanel({
         <span className="settings-installation-source">
           点击“一键安装并写入”会创建 {status.wrapperPath || '~/.lpet/bin/git'}，并向常用 shell 配置写入 PATH。
         </span>
-        <span className="settings-installation-source">Cursor 里已打开的终端不会自动刷新 PATH，请关闭当前终端标签后重新打开。</span>
       </div>
 
       <div className="settings-form-grid settings-model-form-grid">
@@ -77,7 +76,7 @@ export function DevelopmentCompanionPanel({
       </div>
       <div className="settings-check-time">{comparisonText}</div>
 
-      <div className="settings-diagnostics settings-dev-diagnostics">
+      {/* <div className="settings-diagnostics settings-dev-diagnostics">
         <span>Wrapper：{status.wrapperInstalled ? '已安装' : '未安装'} · {status.wrapperPath || '未知'}</span>
         <span>Shell PATH：{hasShellProfileConfigured ? '已写入 shell profile' : '未写入 shell profile'}</span>
         <span>.zshrc：{status.zshrcConfigured ? '已写入' : '未写入'} · .zprofile：{status.zprofileConfigured ? '已写入' : '未写入'}</span>
@@ -86,9 +85,9 @@ export function DevelopmentCompanionPanel({
         <span>真实 Git：{status.realGitPath ?? '未检测到'}</span>
         <span>Node：{status.nodePath ?? '未检测到'}</span>
         <span>SQLite：{status.databasePath || '未知'}</span>
-      </div>
+      </div> */}
 
-      {status.recentEvents.length > 0 && (
+      {/* {status.recentEvents.length > 0 && (
         <div className="settings-dev-events">
           {status.recentEvents.slice(0, 4).map((event) => (
             <div key={event.id}>
@@ -99,17 +98,17 @@ export function DevelopmentCompanionPanel({
         </div>
       )}
 
-      {message && <div className={message.includes('成功') || message.includes('保存') ? 'settings-success' : 'settings-error'}>{message}</div>}
+      {message && <div className={message.includes('成功') || message.includes('保存') ? 'settings-success' : 'settings-error'}>{message}</div>} */}
 
       <div className="settings-section-actions settings-model-actions">
         <button type="button" className="settings-secondary-button" disabled={isInstalling} onClick={onRefresh}>
-          刷新状态
+          刷新
         </button>
         <button type="button" className="settings-secondary-button" disabled={isSaving} onClick={onSave}>
-          {isSaving ? '保存中' : '保存配置'}
+          {isSaving ? '保存中' : '保存'}
         </button>
         <button type="button" className="settings-refresh-button settings-save-button" disabled={isInstalling} onClick={onInstall}>
-          {isInstalling ? '安装中' : '一键安装并写入'}
+          {isInstalling ? '安装中' : '安装'}
         </button>
       </div>
     </section>

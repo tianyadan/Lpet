@@ -20,6 +20,8 @@ import { listLocalSkills } from './services/SkillService.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+app.setName('Lpet');
+
 let petWindow: BrowserWindow | null = null;
 let codexWindow: BrowserWindow | null = null;
 const reminderWindows = new Map<string, BrowserWindow>();
@@ -1195,7 +1197,7 @@ function runCodexPrompt(
 function createTray(): void {
   const icon = nativeImage.createEmpty();
   tray = new Tray(icon);
-  tray.setToolTip('Codex Pet Clone');
+  tray.setToolTip('Lpet');
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {

@@ -15,6 +15,7 @@ Lpet is designed as a personal agent entry point on the desktop.
 - **Agent runtime**: Codex CLI can execute local tasks, while configured model providers handle fast Q&A and translation.
 - **Skills**: local skills extend workflows such as scheduled reminders or daily reports.
 - **Memory**: local SQLite stores interaction history and pet identity.
+- **Developer companionship**: optional Git commit/push tracking records coding activity locally and lets the pet acknowledge developer progress.
 - **Settings**: configure CLI tools, model providers, pet identity, and translation shortcuts.
 
 ## Demo
@@ -46,6 +47,7 @@ Lpet is designed as a personal agent entry point on the desktop.
 - Scheduled reminder skill backed by SQLite polling.
 - Pet identity settings: name, owner, age, gender, hobbies, and bio.
 - Interaction memory stored locally.
+- Developer companion mode: track local Git commit and push activity, record daily progress in SQLite, and show pet encouragement bubbles.
 - Quick translation shortcut with configurable target language.
 - Image upload support when a vision model is configured.
 - Task status lights for multi-step agent work.

@@ -15,7 +15,7 @@ export const PET_WINDOW_EDGE_PAD = 4;
 export const MIN_PET_SCALE = 0.5;
 export const MAX_PET_SCALE = 1;
 
-export const PET_SCALE_STORAGE_KEY = 'codex-pet-clone:pet-scale';
+export const PET_SCALE_STORAGE_KEY = 'lpet:pet-scale';
 
 /** 对角拖动多少像素对应从最小缩放到最大缩放。 */
 export const PET_SCALE_DRAG_RANGE = 320;
