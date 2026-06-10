@@ -1,11 +1,14 @@
-import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, screen, systemPreferences, Tray } from 'electron';
-import { spawn, spawnSync } from 'node:child_process';
+import { app, BrowserWindow, clipboard, globalShortcut, ipcMain, Menu, nativeImage, screen, systemPreferences, Tray } from 'electron';
+import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkCodexInstallations, resolveCodexCliPath } from './services/CliDetectionService.js';
+import { GitActivityService } from './services/GitActivityService.js';
 import { InteractionHistoryService, } from './services/InteractionHistoryService.js';
+import { importPetSkinFromFolder, listImportedPetSkins } from './services/PetSkinService.js';
+import { listLocalSkills } from './services/SkillService.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 let petWindow = null;
@@ -14,12 +17,11 @@ const reminderWindows = new Map();
 let tray = null;
 let activeCodexProcess = null;
 let reminderPollTimer = null;
-let gitActivityPollTimer = null;
 let isQuickTranslating = false;
 let activeRun = null;
-const FALLBACK_CLI_SEARCH_PATHS = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin'];
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 const historyService = new InteractionHistoryService();
+const gitActivityService = new GitActivityService(historyService, sendCodexEvent);
 const sessionIdPattern = /session id:\s*([0-9a-f-]{36})/i;
 const translationLanguageLabels = {
     english: '英语',
@@ -29,7 +31,6 @@ const translationLanguageLabels = {
     japanese: '日本语',
     italian: '意大利语',
 };
-const PET_SKIN_ROOT_NAME = 'pet-skins';
 /** 与 src/pet/constants.ts 保持一致，主进程按桌宠锚点换算窗口位置。 */
 const PET_CELL_WIDTH = 192;
 const PET_CELL_HEIGHT = 208;
@@ -184,109 +185,6 @@ function openReminderWindow(task) {
     window.show();
     window.focus();
 }
-function isExecutableFile(filePath) {
-    try {
-        fs.accessSync(filePath, fs.constants.X_OK);
-        return true;
-    }
-    catch {
-        return false;
-    }
-}
-function findNvmCliCandidates(commandName) {
-    const nvmVersionsRoot = path.join(os.homedir(), '.nvm/versions/node');
-    if (!fs.existsSync(nvmVersionsRoot)) {
-        return [];
-    }
-    try {
-        return fs
-            .readdirSync(nvmVersionsRoot)
-            .map((versionName) => path.join(nvmVersionsRoot, versionName, 'bin', commandName))
-            .filter(isExecutableFile);
-    }
-    catch {
-        return [];
-    }
-}
-function resolveCliFromShell(commandName) {
-    const shellCommands = [
-        ['/bin/zsh', ['-lic', `command -v ${commandName}`]],
-        ['/bin/zsh', ['-lc', `command -v ${commandName}`]],
-    ];
-    for (const [shellPath, shellArgs] of shellCommands) {
-        const result = spawnSync(shellPath, shellArgs, {
-            env: process.env,
-            encoding: 'utf8',
-            timeout: 3000,
-        });
-        const resolvedPath = result.stdout.trim().split('\n').at(-1)?.trim();
-        if (resolvedPath && isExecutableFile(resolvedPath)) {
-            return resolvedPath;
-        }
-    }
-    return null;
-}
-function resolveCliPath({ commandName, envName, appCandidatePaths = [], }) {
-    const configuredCliPath = process.env[envName]?.trim();
-    if (configuredCliPath && isExecutableFile(configuredCliPath)) {
-        return { installed: true, path: configuredCliPath, source: 'env' };
-    }
-    const pathEntries = Array.from(new Set((process.env.PATH ?? '')
-        .split(path.delimiter)
-        .map((entry) => entry.trim())
-        .filter(Boolean)
-        .concat(FALLBACK_CLI_SEARCH_PATHS)));
-    for (const pathEntry of pathEntries) {
-        const cliPath = path.join(pathEntry, commandName);
-        if (isExecutableFile(cliPath)) {
-            return { installed: true, path: cliPath, source: 'path' };
-        }
-    }
-    const nvmCliPath = findNvmCliCandidates(commandName)[0];
-    if (nvmCliPath) {
-        return { installed: true, path: nvmCliPath, source: 'nvm' };
-    }
-    for (const candidatePath of appCandidatePaths) {
-        if (isExecutableFile(candidatePath)) {
-            return { installed: true, path: candidatePath, source: 'app' };
-        }
-    }
-    const shellCliPath = resolveCliFromShell(commandName);
-    if (shellCliPath) {
-        return { installed: true, path: shellCliPath, source: 'shell' };
-    }
-    return { installed: false, path: null, source: null };
-}
-function resolveCodexCliPath() {
-    return resolveCliPath({
-        commandName: 'codex',
-        envName: 'CODEX_CLI_PATH',
-    });
-}
-function checkCodexInstallations() {
-    const cli = resolveCodexCliPath();
-    const cursor = resolveCliPath({
-        commandName: 'cursor',
-        envName: 'CURSOR_CLI_PATH',
-        appCandidatePaths: ['/Applications/Cursor.app/Contents/Resources/app/bin/cursor'],
-    });
-    const claudeCode = resolveCliPath({
-        commandName: 'claude',
-        envName: 'CLAUDE_CLI_PATH',
-    });
-    return {
-        cli,
-        cursor,
-        claudeCode,
-        diagnostics: {
-            pid: process.pid,
-            homeDir: os.homedir(),
-            configuredCliPath: process.env.CODEX_CLI_PATH?.trim() || null,
-            configuredCursorPath: process.env.CURSOR_CLI_PATH?.trim() || null,
-            configuredClaudePath: process.env.CLAUDE_CLI_PATH?.trim() || null,
-        },
-    };
-}
 function sendCodexEvent(payload) {
     petWindow?.webContents.send('codex:event', payload);
     codexWindow?.webContents.send('codex:event', payload);
@@ -423,315 +321,6 @@ function startReminderScheduler() {
     }
     checkDueReminders();
     reminderPollTimer = setInterval(checkDueReminders, 30_000);
-}
-function getLpetHome() {
-    return path.join(os.homedir(), '.lpet');
-}
-function getGitActivityDatabasePath() {
-    return path.join(app.getPath('userData'), 'pet.db');
-}
-function resolveRealGitPath() {
-    const lpetBin = path.join(getLpetHome(), 'bin');
-    const wrapperPath = path.join(lpetBin, 'git');
-    const pathEntries = (process.env.PATH ?? '')
-        .split(path.delimiter)
-        .filter((entry) => entry && path.resolve(entry) !== path.resolve(lpetBin));
-    const candidatePaths = Array.from(new Set([...pathEntries, '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin']));
-    for (const entry of candidatePaths) {
-        const candidate = path.join(entry, 'git');
-        if (isExecutableFile(candidate) && path.resolve(candidate) !== path.resolve(wrapperPath)) {
-            return candidate;
-        }
-    }
-    return null;
-}
-function resolveNodePath() {
-    if (process.env.CODEX_PET_NODE_PATH && isExecutableFile(process.env.CODEX_PET_NODE_PATH)) {
-        return process.env.CODEX_PET_NODE_PATH;
-    }
-    const result = spawnSync('/bin/zsh', ['-lc', 'command -v node'], {
-        encoding: 'utf8',
-        timeout: 3000,
-    });
-    const nodePath = result.stdout.trim().split('\n').at(-1)?.trim();
-    if (nodePath && isExecutableFile(nodePath)) {
-        return nodePath;
-    }
-    for (const candidate of ['/opt/homebrew/bin/node', '/usr/local/bin/node', '/usr/bin/node']) {
-        if (isExecutableFile(candidate)) {
-            return candidate;
-        }
-    }
-    return null;
-}
-function buildGitActivityRecorderScript() {
-    return `#!/usr/bin/env node
-const fs = require('node:fs');
-const path = require('node:path');
-const { spawnSync } = require('node:child_process');
-const { randomUUID } = require('node:crypto');
-const { DatabaseSync } = require('node:sqlite');
-
-const [eventType, repoPath, realGitPath, dbPath, remote = ''] = process.argv.slice(2);
-if (!eventType || !repoPath || !realGitPath || !dbPath) {
-  process.exit(0);
-}
-
-function git(args) {
-  const result = spawnSync(realGitPath, args, { cwd: repoPath, encoding: 'utf8' });
-  return result.status === 0 ? result.stdout.trim() : '';
-}
-
-try {
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  const db = new DatabaseSync(dbPath);
-  db.exec(\`
-    CREATE TABLE IF NOT EXISTS git_activity_config (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      enabled INTEGER NOT NULL DEFAULT 0,
-      translate_commit INTEGER NOT NULL DEFAULT 0,
-      summary_time TEXT NOT NULL DEFAULT '20:00',
-      updated_at TEXT NOT NULL DEFAULT ''
-    );
-
-    CREATE TABLE IF NOT EXISTS git_activity_events (
-      id TEXT PRIMARY KEY,
-      event_type TEXT NOT NULL,
-      repo_path TEXT NOT NULL,
-      branch TEXT NOT NULL DEFAULT '',
-      remote TEXT NOT NULL DEFAULT '',
-      commit_hash TEXT NOT NULL DEFAULT '',
-      commit_message TEXT NOT NULL DEFAULT '',
-      translated_message TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL,
-      notified_at TEXT NOT NULL DEFAULT ''
-    );
-  \`);
-
-  const config = db.prepare('SELECT enabled FROM git_activity_config WHERE id = 1').get();
-  if (!config || config.enabled !== 1) {
-    db.close();
-    process.exit(0);
-  }
-
-  const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']);
-  const commitHash = eventType === 'commit' ? git(['log', '-1', '--pretty=%H']) : '';
-  const commitMessage = eventType === 'commit' ? git(['log', '-1', '--pretty=%s']) : '';
-  const now = new Date().toISOString();
-  db.prepare(\`
-    INSERT INTO git_activity_events (
-      id,
-      event_type,
-      repo_path,
-      branch,
-      remote,
-      commit_hash,
-      commit_message,
-      translated_message,
-      created_at,
-      notified_at
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, '')
-  \`).run(randomUUID(), eventType, repoPath, branch, remote, commitHash, commitMessage, now);
-  db.close();
-} catch {
-  process.exit(0);
-}
-`;
-}
-function buildGitWrapperScript(realGitPath, nodePath, recorderPath) {
-    return `#!/usr/bin/env bash
-REAL_GIT=${JSON.stringify(realGitPath)}
-NODE_BIN=${JSON.stringify(nodePath)}
-RECORDER=${JSON.stringify(recorderPath)}
-DB_PATH=${JSON.stringify(getGitActivityDatabasePath())}
-
-COMMAND=""
-REMOTE=""
-SKIP_NEXT=0
-NEXT_IS_CWD=0
-GIT_CWD="$PWD"
-for ARG in "$@"; do
-  if [ "$NEXT_IS_CWD" -eq 1 ]; then
-    GIT_CWD="$ARG"
-    NEXT_IS_CWD=0
-    continue
-  fi
-  if [ "$SKIP_NEXT" -eq 1 ]; then
-    SKIP_NEXT=0
-    continue
-  fi
-  case "$ARG" in
-    -C)
-      NEXT_IS_CWD=1
-      continue
-      ;;
-    --git-dir|--work-tree)
-      SKIP_NEXT=1
-      continue
-      ;;
-    -*)
-      continue
-      ;;
-    *)
-      if [ -z "$COMMAND" ]; then
-        COMMAND="$ARG"
-      elif [ "$COMMAND" = "push" ] && [ -z "$REMOTE" ]; then
-        REMOTE="$ARG"
-      fi
-      ;;
-  esac
-done
-
-"$REAL_GIT" "$@"
-EXIT_CODE=$?
-
-if [ "$EXIT_CODE" -eq 0 ]; then
-  REPO_PATH=$("$REAL_GIT" -C "$GIT_CWD" rev-parse --show-toplevel 2>/dev/null || printf "%s" "$GIT_CWD")
-  if [ "$COMMAND" = "commit" ]; then
-    "$NODE_BIN" "$RECORDER" commit "$REPO_PATH" "$REAL_GIT" "$DB_PATH" >/dev/null 2>&1 &
-  elif [ "$COMMAND" = "push" ]; then
-    "$NODE_BIN" "$RECORDER" push "$REPO_PATH" "$REAL_GIT" "$DB_PATH" "$REMOTE" >/dev/null 2>&1 &
-  fi
-fi
-
-exit "$EXIT_CODE"
-`;
-}
-function getGitActivityInstallStatus() {
-    const lpetHome = getLpetHome();
-    const binDir = path.join(lpetHome, 'bin');
-    const wrapperPath = path.join(binDir, 'git');
-    const recorderPath = path.join(lpetHome, 'scripts', 'record-git-activity.cjs');
-    const zshrcPath = path.join(os.homedir(), '.zshrc');
-    const zprofilePath = path.join(os.homedir(), '.zprofile');
-    const bashrcPath = path.join(os.homedir(), '.bashrc');
-    const bashProfilePath = path.join(os.homedir(), '.bash_profile');
-    const pathLine = 'export PATH="$HOME/.lpet/bin:$PATH"';
-    const pathBlock = buildGitActivityPathBlock();
-    const zshrcContent = fs.existsSync(zshrcPath) ? fs.readFileSync(zshrcPath, 'utf8') : '';
-    const zprofileContent = fs.existsSync(zprofilePath) ? fs.readFileSync(zprofilePath, 'utf8') : '';
-    const bashrcContent = fs.existsSync(bashrcPath) ? fs.readFileSync(bashrcPath, 'utf8') : '';
-    const bashProfileContent = fs.existsSync(bashProfilePath) ? fs.readFileSync(bashProfilePath, 'utf8') : '';
-    const currentPathEntries = (process.env.PATH ?? '').split(path.delimiter).map((entry) => path.resolve(entry || '.'));
-    return {
-        wrapperInstalled: isExecutableFile(wrapperPath),
-        zshrcConfigured: zshrcContent.includes(pathLine) || zshrcContent.includes('LPET_GIT_ACTIVITY_PATH'),
-        zprofileConfigured: zprofileContent.includes(pathLine) || zprofileContent.includes('LPET_GIT_ACTIVITY_PATH'),
-        bashrcConfigured: bashrcContent.includes(pathLine) || bashrcContent.includes('LPET_GIT_ACTIVITY_PATH'),
-        bashProfileConfigured: bashProfileContent.includes(pathLine) || bashProfileContent.includes('LPET_GIT_ACTIVITY_PATH'),
-        currentShellConfigured: currentPathEntries.includes(path.resolve(binDir)),
-        wrapperPath,
-        recorderPath,
-        realGitPath: resolveRealGitPath(),
-        nodePath: resolveNodePath(),
-        databasePath: getGitActivityDatabasePath(),
-        pathLine,
-        pathBlock,
-    };
-}
-function installGitActivityWrapper() {
-    const realGitPath = resolveRealGitPath();
-    const nodePath = resolveNodePath();
-    if (!realGitPath) {
-        throw new Error('未找到真实 git 可执行文件。');
-    }
-    if (!nodePath) {
-        throw new Error('未找到 node 可执行文件，请先安装 Node.js。');
-    }
-    const lpetHome = getLpetHome();
-    const binDir = path.join(lpetHome, 'bin');
-    const scriptsDir = path.join(lpetHome, 'scripts');
-    const wrapperPath = path.join(binDir, 'git');
-    const recorderPath = path.join(scriptsDir, 'record-git-activity.cjs');
-    fs.mkdirSync(binDir, { recursive: true });
-    fs.mkdirSync(scriptsDir, { recursive: true });
-    fs.writeFileSync(recorderPath, buildGitActivityRecorderScript(), { mode: 0o755 });
-    fs.writeFileSync(wrapperPath, buildGitWrapperScript(realGitPath, nodePath, recorderPath), { mode: 0o755 });
-    return getGitActivityInstallStatus();
-}
-function buildGitActivityPathBlock() {
-    return [
-        '# Lpet Git activity tracking',
-        'export LPET_GIT_ACTIVITY_PATH="$HOME/.lpet/bin"',
-        'case ":$PATH:" in',
-        '  *":$LPET_GIT_ACTIVITY_PATH:"*) ;;',
-        '  *) export PATH="$LPET_GIT_ACTIVITY_PATH:$PATH" ;;',
-        'esac',
-    ].join('\n');
-}
-function writeGitActivityPathToProfile(profilePath) {
-    const pathBlock = buildGitActivityPathBlock();
-    const currentContent = fs.existsSync(profilePath) ? fs.readFileSync(profilePath, 'utf8') : '';
-    if (!currentContent.includes('LPET_GIT_ACTIVITY_PATH')) {
-        const nextContent = `${currentContent.trimEnd()}\n\n${pathBlock}\n`;
-        fs.writeFileSync(profilePath, nextContent);
-    }
-}
-function writeGitActivityPathToShellProfiles() {
-    // WHY：Cursor、macOS Terminal 和 VS Code 对 login/interactive shell 的启动方式不同，只写 .zshrc 容易漏掉。
-    for (const profileName of ['.zshrc', '.zprofile', '.bashrc', '.bash_profile']) {
-        writeGitActivityPathToProfile(path.join(os.homedir(), profileName));
-    }
-    return getGitActivityInstallStatus();
-}
-function installGitActivityAndConfigureShell() {
-    installGitActivityWrapper();
-    writeGitActivityPathToShellProfiles();
-    historyService.saveGitActivityConfig({ enabled: true });
-    return getGitActivityStatus();
-}
-function getGitActivityStatus() {
-    const today = getLocalDateKey();
-    const yesterday = getLocalDateKey(-1);
-    return {
-        ...getGitActivityInstallStatus(),
-        config: historyService.getGitActivityConfig(),
-        todayStats: historyService.getGitActivityStatsForDate(today),
-        yesterdayStats: historyService.getGitActivityStatsForDate(yesterday),
-        recentEvents: historyService.listRecentGitActivityEvents(8),
-    };
-}
-function getLocalDateKey(offsetDays = 0) {
-    const date = new Date();
-    date.setDate(date.getDate() + offsetDays);
-    const year = date.getFullYear();
-    const month = `${date.getMonth() + 1}`.padStart(2, '0');
-    const day = `${date.getDate()}`.padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-function buildGitActivityBubble(event) {
-    const stats = historyService.getGitActivityStatsForDate(getLocalDateKey());
-    if (event.eventType === 'push') {
-        return `今天第 ${stats.pushCount} 次 push，项目真的在往前走。`;
-    }
-    const message = event.translatedMessage || event.commitMessage;
-    return `今天第 ${stats.commitCount} 次 commit${message ? `：${message}` : ''}。节奏不错，继续推进。`;
-}
-function pollGitActivityEvents() {
-    const config = historyService.getGitActivityConfig();
-    if (!config.enabled) {
-        return;
-    }
-    const events = historyService.listUnnotifiedGitActivityEvents(5);
-    if (events.length === 0) {
-        return;
-    }
-    for (const event of events) {
-        sendCodexEvent({
-            type: 'git-activity',
-            eventType: event.eventType,
-            text: buildGitActivityBubble(event),
-        });
-    }
-    historyService.markGitActivityEventsNotified(events.map((event) => event.id));
-}
-function startGitActivityScheduler() {
-    if (gitActivityPollTimer) {
-        return;
-    }
-    pollGitActivityEvents();
-    gitActivityPollTimer = setInterval(pollGitActivityEvents, 8_000);
 }
 function shouldAttachHistoryContext(prompt) {
     return /刚才|之前|历史|记录|做了什么|交互|问过/.test(prompt);
@@ -1317,194 +906,6 @@ function finishActiveRun(status) {
 function normalizeCodexRunIntent(intent) {
     return intent === 'chat' || intent === 'task' ? intent : 'task';
 }
-function parseSkillMetadata(entryPath) {
-    const fallbackName = path.basename(path.dirname(entryPath));
-    try {
-        const content = fs.readFileSync(entryPath, 'utf8');
-        const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-        const frontmatter = frontmatterMatch?.[1] ?? '';
-        const name = frontmatter.match(/^name:\s*["']?(.+?)["']?\s*$/m)?.[1]?.trim() ?? fallbackName;
-        const description = frontmatter.match(/^description:\s*["']?([\s\S]*?)["']?\s*$/m)?.[1]?.trim() ??
-            content
-                .split('\n')
-                .find((line) => line.trim() && !line.startsWith('---') && !line.startsWith('#'))
-                ?.trim() ??
-            '';
-        return {
-            name,
-            description: description.replace(/\s+/g, ' ').slice(0, 280),
-        };
-    }
-    catch {
-        return {
-            name: fallbackName,
-            description: '',
-        };
-    }
-}
-function listSkillEntryFiles(rootDir, maxDepth = 4) {
-    if (!fs.existsSync(rootDir)) {
-        return [];
-    }
-    const result = [];
-    const visit = (currentDir, depth) => {
-        if (depth > maxDepth) {
-            return;
-        }
-        let entries;
-        try {
-            entries = fs.readdirSync(currentDir, { withFileTypes: true });
-        }
-        catch {
-            return;
-        }
-        for (const entry of entries) {
-            const entryPath = path.join(currentDir, entry.name);
-            if (entry.isFile() && entry.name === 'SKILL.md') {
-                result.push(entryPath);
-                continue;
-            }
-            if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== '.git') {
-                visit(entryPath, depth + 1);
-            }
-        }
-    };
-    visit(rootDir, 0);
-    return result;
-}
-function listLocalSkills() {
-    const homeDir = os.homedir();
-    const searchRoots = [
-        { dir: path.join(homeDir, '.codex', 'skills'), source: 'codex' },
-        { dir: path.join(homeDir, '.agents', 'skills'), source: 'agents' },
-        { dir: path.join(process.cwd(), 'skills'), source: 'project' },
-    ];
-    const seenPaths = new Set();
-    return searchRoots
-        .flatMap(({ dir, source }) => listSkillEntryFiles(dir).map((entryPath) => ({
-        entryPath,
-        source,
-    })))
-        .filter(({ entryPath }) => {
-        const normalizedPath = path.resolve(entryPath);
-        if (seenPaths.has(normalizedPath)) {
-            return false;
-        }
-        seenPaths.add(normalizedPath);
-        return true;
-    })
-        .map(({ entryPath, source }) => {
-        const metadata = parseSkillMetadata(entryPath);
-        return {
-            id: `${source}:${path.relative(source === 'project' ? process.cwd() : homeDir, entryPath)}`,
-            name: metadata.name,
-            description: metadata.description,
-            entryPath,
-            enabled: true,
-            source,
-        };
-    })
-        .sort((left, right) => left.name.localeCompare(right.name, 'zh-Hans-CN'));
-}
-function getImportedSkinRoot() {
-    return path.join(app.getPath('userData'), PET_SKIN_ROOT_NAME);
-}
-function sanitizeSkinDirectoryName(value) {
-    const normalized = value.trim().replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
-    return normalized || `skin-${Date.now()}`;
-}
-function getImageMimeType(filePath) {
-    const extension = path.extname(filePath).toLowerCase();
-    if (extension === '.png') {
-        return 'image/png';
-    }
-    if (extension === '.jpg' || extension === '.jpeg') {
-        return 'image/jpeg';
-    }
-    if (extension === '.gif') {
-        return 'image/gif';
-    }
-    return 'image/webp';
-}
-function readImageDataUrl(filePath) {
-    const mimeType = getImageMimeType(filePath);
-    const imageData = fs.readFileSync(filePath).toString('base64');
-    return `data:${mimeType};base64,${imageData}`;
-}
-function normalizeImportedSkinDirectory(directoryPath) {
-    const petJsonPath = path.join(directoryPath, 'pet.json');
-    if (!fs.existsSync(petJsonPath)) {
-        return null;
-    }
-    try {
-        const rawDefinition = JSON.parse(fs.readFileSync(petJsonPath, 'utf8'));
-        const rawId = typeof rawDefinition.id === 'string' && rawDefinition.id.trim()
-            ? rawDefinition.id.trim()
-            : path.basename(directoryPath);
-        const spritesheetPath = typeof rawDefinition.spritesheetPath === 'string' && rawDefinition.spritesheetPath.trim()
-            ? rawDefinition.spritesheetPath.trim()
-            : 'spritesheet.webp';
-        const spritesheetFilePath = path.join(directoryPath, spritesheetPath);
-        if (!fs.existsSync(spritesheetFilePath)) {
-            return null;
-        }
-        return {
-            id: `imported:${sanitizeSkinDirectoryName(rawId)}`,
-            displayName: typeof rawDefinition.displayName === 'string' && rawDefinition.displayName.trim()
-                ? rawDefinition.displayName.trim()
-                : rawId,
-            description: typeof rawDefinition.description === 'string' && rawDefinition.description.trim()
-                ? rawDefinition.description.trim()
-                : 'Imported Codex-compatible pet skin.',
-            // WHY：开发模式渲染页是 http://127.0.0.1，直接加载 file:// 皮肤图会被浏览器安全策略拦截。
-            spritesheetUrl: readImageDataUrl(spritesheetFilePath),
-            source: 'imported',
-            directoryPath,
-        };
-    }
-    catch {
-        return null;
-    }
-}
-function listImportedPetSkins() {
-    const skinRoot = getImportedSkinRoot();
-    if (!fs.existsSync(skinRoot)) {
-        return [];
-    }
-    return fs
-        .readdirSync(skinRoot, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => normalizeImportedSkinDirectory(path.join(skinRoot, entry.name)))
-        .filter((skin) => Boolean(skin))
-        .sort((left, right) => left.displayName.localeCompare(right.displayName, 'zh-Hans-CN'));
-}
-async function importPetSkinFromFolder() {
-    const result = await dialog.showOpenDialog({
-        title: '选择 Codex 适配皮肤文件夹',
-        properties: ['openDirectory'],
-        message: '请选择包含 pet.json 和 spritesheet.webp 的皮肤父文件夹。',
-    });
-    if (result.canceled || !result.filePaths[0]) {
-        return null;
-    }
-    const sourceDirectory = result.filePaths[0];
-    const sourceSkin = normalizeImportedSkinDirectory(sourceDirectory);
-    if (!sourceSkin) {
-        throw new Error('导入失败：请选择包含 pet.json 和 spritesheet.webp 的 Codex 适配皮肤文件夹。');
-    }
-    const skinRoot = getImportedSkinRoot();
-    fs.mkdirSync(skinRoot, { recursive: true });
-    const destinationDirectory = path.join(skinRoot, sanitizeSkinDirectoryName(sourceSkin.id.replace(/^imported:/, '')));
-    if (path.resolve(sourceDirectory) !== path.resolve(destinationDirectory)) {
-        fs.rmSync(destinationDirectory, { recursive: true, force: true });
-        fs.cpSync(sourceDirectory, destinationDirectory, { recursive: true });
-    }
-    const importedSkin = normalizeImportedSkinDirectory(destinationDirectory);
-    if (!importedSkin) {
-        throw new Error('导入失败：复制后的皮肤文件不完整。');
-    }
-    return importedSkin;
-}
 function runCodexPrompt(prompt, target, sessionId, intent = 'task', elevated = false) {
     if (activeCodexProcess) {
         throw new Error('Codex task is already running');
@@ -1805,8 +1206,8 @@ function registerIpc() {
         });
         return savedConfig;
     });
-    ipcMain.handle('git-activity:get-status', () => getGitActivityStatus());
-    ipcMain.handle('git-activity:install', () => installGitActivityAndConfigureShell());
+    ipcMain.handle('git-activity:get-status', () => gitActivityService.getStatus());
+    ipcMain.handle('git-activity:install', () => gitActivityService.installAndConfigureShell());
     ipcMain.handle('codex:run', (_event, prompt, target, sessionId, intent, elevated) => {
         if (typeof prompt !== 'string') {
             throw new Error('Prompt must be a string');
@@ -1844,7 +1245,7 @@ else {
         petWindow = createPetWindow();
         createTray();
         startReminderScheduler();
-        startGitActivityScheduler();
+        gitActivityService.startScheduler();
         registerTranslationShortcut();
         app.on('activate', () => {
             if (BrowserWindow.getAllWindows().length === 0) {
@@ -1859,8 +1260,5 @@ app.on('window-all-closed', () => {
 });
 app.on('will-quit', () => {
     globalShortcut.unregisterAll();
-    if (gitActivityPollTimer) {
-        clearInterval(gitActivityPollTimer);
-        gitActivityPollTimer = null;
-    }
+    gitActivityService.stopScheduler();
 });
